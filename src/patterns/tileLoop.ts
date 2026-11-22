@@ -41,13 +41,15 @@ function period(rule: TileRule, n: number): number {
     case 'random':
     case 'turns':
       return n;
+    case 'custom':
+      return 1; // handled separately (patW × patH)
     default:
       return 2;
   }
 }
 
 /** Orientation of the cell at lattice position (ci, cj). Depends only on position mod period → seamless loops. */
-function orientation(rule: TileRule, ci: number, cj: number, n: number, seed: number): Orientation {
+function orientation(rule: TileRule, ci: number, cj: number, n: number, seed: number, cells?: number[], pw = 1, ph = 1): Orientation {
   const a = mod(ci, 2);
   const b = mod(cj, 2);
   switch (rule) {
@@ -68,6 +70,10 @@ function orientation(rule: TileRule, ci: number, cj: number, n: number, seed: nu
         fx: rule === 'random' && hash01(seed + 1, i, j) > 0.5,
         fy: false,
       };
+    }
+    case 'custom': {
+      const c = cells?.[mod(cj, ph) * pw + mod(ci, pw)] ?? 0;
+      return { quarter: c & 3, fx: (c & 4) !== 0, fy: false };
     }
     case 'same':
     default:
@@ -103,14 +109,13 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
   let R = Math.min(12, Math.max(4, Math.ceil(FRAME / Math.min(colStep, rowStep)) + 1));
   if (s.multi) R = Math.ceil(R / fgN) * fgN;
   let L = period(s.rule, R);
+  if (s.rule === 'custom') L = lcm(s.patW, s.patH);
   if (assets.length > 1) L = lcm(L, R);
   if (rowShift || colShift) L = lcm(L, 2);
   L = Math.min(L, 48) * Math.max(1, Math.round(s.laps));
 
   const travelling = s.tileMotion === 'scroll' || s.tileMotion === 'rows' || s.tileMotion === 'cols';
   const pos = travelling ? frac(t) * L : 0; // constant speed — it never turns back
-  const k = Math.floor(pos);
-  const f = pos - k;
   const [dx, dy] = DIRS[s.dir];
 
   const nx = Math.ceil(FRAME / colStep) + 2;
@@ -121,14 +126,24 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
     for (let si = -2; si <= nx; si++) {
       let sx = 0;
       let sy = 0;
+      let mult = 1;
       if (s.tileMotion === 'scroll') {
         sx = dx;
         sy = dy;
       } else if (s.tileMotion === 'rows') {
-        sx = (mod(sj, 2) ? -1 : 1) * (dx || 1);
+        const li = mod(sj, s.lineDir.length);
+        const code = s.lineDir[li];
+        sx = code === 0 ? (mod(sj, 2) ? -1 : 1) * (dx || 1) : code === 2 ? 0 : code;
+        mult = s.lineSpeed[li] || 1;
       } else if (s.tileMotion === 'cols') {
-        sy = (mod(si, 2) ? -1 : 1) * (dy || 1);
+        const li = mod(si, s.lineDir.length);
+        const code = s.lineDir[li];
+        sy = code === 0 ? (mod(si, 2) ? -1 : 1) * (dy || 1) : code === 2 ? 0 : code;
+        mult = s.lineSpeed[li] || 1;
       }
+      const p = pos * mult; // every line moves a whole number of loop lengths → still seamless
+      const k = Math.floor(p);
+      const f = p - k;
       // the shape sitting in this slot keeps its identity (orientation, colour) while it travels
       const vi = si - sx * k;
       const vj = sj - sy * k;
@@ -136,7 +151,7 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
       const y = sj * rowStep + sy * f * rowStep + (mod(vi, 2) ? colShift : 0);
       if (x >= FRAME || x + w <= 0 || y >= FRAME || y + h <= 0) continue;
 
-      const o = orientation(s.rule, vi, vj, R, state.color.seed);
+      const o = orientation(s.rule, vi, vj, R, state.color.seed, s.cells, s.patW, s.patH);
       let spin = 0;
       let flip = 1;
       if (s.tileMotion === 'flip' || s.tileMotion === 'rotate') {
@@ -149,7 +164,7 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
       const asset: ShapeAsset = pickAsset(state, assets, mod(vi, R), mod(vj, R));
       const b = asset.bbox;
       const fullTile = asset.twoTone;
-      const sc = (Math.min(w, h) * (1 - s.tileGap)) / Math.max(b.w, b.h);
+      const sc = s.size / Math.max(b.w, b.h);
       const m = compose(
         translate(x + w / 2, y + h / 2),
         rotate(spin),

@@ -10,7 +10,7 @@ export type ShapeLayout = 'tile' | 'loose';
 export type TileType = 'grid' | 'brickRow' | 'brickCol' | 'hexCol' | 'hexRow';
 export type TextMode = 'weight' | 'loop';
 export type TextDir = 'l' | 'r' | 'u' | 'd';
-export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'turns' | 'random';
+export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'turns' | 'random' | 'custom';
 export type TileMotion = 'scroll' | 'rows' | 'cols' | 'flip' | 'rotate' | 'still';
 export type ScrollDir = 'l' | 'r' | 'u' | 'd' | 'ul' | 'ur' | 'dl' | 'dr';
 export type ExportFormat = 'png' | 'svg' | 'gif' | 'mp4' | 'webm';
@@ -64,8 +64,15 @@ export interface State {
     cols: number;
     rows: number;
     gap: number;
-    /** tile layout spacing: negative = shapes grow past their cell and overlap */
-    tileGap: number;
+    /** shape size (its longest side, frame units) — independent of the tile spacing */
+    size: number;
+    /** custom arrangement: a patW × patH block of orientations that repeats (0‥3 quarter turns, +4 = mirrored) */
+    patW: number;
+    patH: number;
+    cells: number[];
+    /** per row (or column) travel: 0 auto · -1 backwards · 1 forwards · 2 still; speed = whole laps multiplier */
+    lineDir: number[];
+    lineSpeed: number[];
     margin: number;
     motion: ShapeMotion;
     arrange: 'cycle' | 'random';
@@ -96,6 +103,9 @@ export interface State {
     /** breathing room between repeated words, in cap heights */
     wordGap: number;
     upper: boolean;
+    /** per line (row, or column when the loop runs vertically): same encoding as shape.lineDir */
+    lineDir: number[];
+    lineSpeed: number[];
   };
   export: {
     format: ExportFormat;
@@ -131,7 +141,12 @@ export const DEFAULT_STATE: State = {
     cols: 5,
     rows: 5,
     gap: 0.12,
-    tileGap: -0.1,
+    size: 380,
+    patW: 3,
+    patH: 3,
+    cells: [0, 1, 6, 5, 2, 7, 3, 4, 0],
+    lineDir: Array(12).fill(0),
+    lineSpeed: Array(12).fill(1),
     margin: 0.06,
     motion: 'weight',
     arrange: 'cycle',
@@ -154,6 +169,8 @@ export const DEFAULT_STATE: State = {
     tracking: 0,
     wordGap: 0.45,
     upper: true,
+    lineDir: Array(20).fill(0),
+    lineSpeed: Array(20).fill(1),
   },
   export: {
     format: 'png',

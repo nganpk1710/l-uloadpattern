@@ -14,6 +14,7 @@ import {
   type Ctl,
 } from './controls';
 import { h } from './dom';
+import { lineTable, patternEditor } from './lineControls';
 
 const sec = (index: string, title: string, sub: string, ...ctls: Ctl[]) => {
   const el = h(
@@ -43,6 +44,7 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
   const isTextLoop = (s: State) => isText(s) && s.text.mode === 'loop';
   const isTextMorph = (s: State) => isText(s) && s.text.mode === 'weight';
   const travels = (s: State) => isTile(s) && ['scroll', 'rows', 'cols'].includes(s.shape.tileMotion);
+  const custom = (s: State) => isTile(s) && s.shape.rule === 'custom';
   const brick = (s: State) => isTile(s) && (s.shape.tileType === 'brickRow' || s.shape.tileType === 'brickCol');
 
   /* ───────────── LEFT · Nội dung, Type & Màu ───────────── */
@@ -201,6 +203,15 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
     }),
     segmented(store, { label: 'Hướng chạy', path: 'shape.dir', options: arrows, compact: true, show: travels }),
     slider(store, { label: 'Số vòng mỗi loop', path: 'shape.laps', min: 1, max: 4, step: 1, fmt: times, hint: 'Mỗi vòng chạy đúng 1 chu kỳ lưới nên luôn khớp đầu–cuối', show: travels }),
+    lineTable(store, {
+      label: 'Điều khiển từng hàng / cột',
+      path: 'shape',
+      count: (s) => Math.min(12, Math.ceil(1080 / (s.shape.tileMotion === 'cols' ? s.shape.tileW : s.shape.tileType === 'hexRow' ? (s.shape.tileLock ? s.shape.tileW : s.shape.tileH) * 0.75 : s.shape.tileLock ? s.shape.tileW : s.shape.tileH))),
+      horizontal: (s) => s.shape.tileMotion === 'rows',
+      unit: (s) => (s.shape.tileMotion === 'rows' ? 'Hàng' : 'Cột'),
+      hint: 'Mỗi hàng (hoặc cột) có chiều và tốc độ riêng; đang áp dụng cho kiểu chạy Hàng / Cột xen kẽ',
+      show: (s) => isTile(s) && (s.shape.tileMotion === 'rows' || s.shape.tileMotion === 'cols'),
+    }),
     // text
     segmented(store, {
       label: 'Hướng chạy',
@@ -215,6 +226,15 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       show: isTextLoop,
     }),
     toggle(store, { label: 'Xen kẽ ngược chiều', path: 'text.alt', hint: 'Dòng (hoặc cột) liền kề chạy ngược nhau', show: isTextLoop }),
+    lineTable(store, {
+      label: 'Điều khiển từng dòng',
+      path: 'text',
+      count: (s) => (s.text.dir === 'l' || s.text.dir === 'r' ? s.text.rows : s.text.repeat),
+      horizontal: (s) => s.text.dir === 'l' || s.text.dir === 'r',
+      unit: (s) => (s.text.dir === 'l' || s.text.dir === 'r' ? 'Dòng' : 'Cột'),
+      hint: 'Mỗi dòng có chiều và tốc độ riêng (×1 ×2 ×3), vẫn loop liền mạch',
+      show: isTextLoop,
+    }),
     slider(store, { label: 'Số vòng mỗi loop', path: 'text.laps', min: 1, max: 4, step: 1, fmt: times, hint: 'Mỗi vòng = chạy đúng 1 ô chữ (ngang) hoặc 1 chu kỳ màu (dọc)', show: isTextLoop }),
   );
 
@@ -244,7 +264,7 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       compact: true,
       show: isTile,
     }),
-    slider(store, { label: 'Width', path: 'shape.tileW', min: 90, max: 1080, step: 5, fmt: px, show: isTile }),
+    slider(store, { label: 'Width', path: 'shape.tileW', min: 60, max: 1080, step: 5, fmt: px, hint: 'Khoảng cách giữa tâm các shape', show: isTile }),
     slider(store, { label: 'Height', path: 'shape.tileH', min: 90, max: 1080, step: 5, fmt: px, show: (s) => isTile(s) && !s.shape.tileLock }),
     toggle(store, { label: 'Khóa tỉ lệ Width = Height', path: 'shape.tileLock', show: isTile }),
     segmented(store, {
@@ -258,11 +278,15 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
         { value: 'spin', label: 'Xoay vòng' },
         { value: 'turns', label: 'Xoay ngẫu nhiên' },
         { value: 'random', label: 'Xoay + lật ngẫu nhiên' },
+        { value: 'custom', label: 'Tự sắp xếp' },
       ],
       compact: true,
       show: isTile,
     }),
-    slider(store, { label: 'Khoảng cách lưới', path: 'shape.tileGap', min: -0.6, max: 0.4, step: 0.005, fmt: signed, hint: 'Âm = shape lớn hơn ô, chồng khít vào nhau', show: isTile }),
+    slider(store, { label: 'Khối lặp · ngang', path: 'shape.patW', min: 1, max: 6, step: 1, fmt: times, show: custom }),
+    slider(store, { label: 'Khối lặp · dọc', path: 'shape.patH', min: 1, max: 6, step: 1, fmt: times, show: custom }),
+    patternEditor(store, lib, { show: custom }),
+    slider(store, { label: 'Kích thước shape', path: 'shape.size', min: 100, max: 1400, step: 10, fmt: px, hint: 'Độc lập với Width / Height: thu nhỏ Width / Height để các shape sát nhau, như reference', show: isTile }),
     toggle(store, { label: 'Đảo sáng / tối', path: 'shape.invert', hint: 'Đổi màu hình và nền', show: isTile }),
     toggle(store, { label: 'Nhiều màu cho hình', path: 'shape.multi', hint: 'Mỗi shape lấy 1 màu trong bảng màu', show: isTile }),
     // shape — Thin → Black grid

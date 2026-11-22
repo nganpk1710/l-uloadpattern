@@ -33,8 +33,6 @@ export function renderTextLoop({ painter, state, t }: RenderContext) {
 
   // constant speed: `laps` tiles (horizontal) or colour periods (vertical) per loop
   const pos = frac(t) * Math.max(1, Math.round(s.laps)) * (horizontal ? 1 : colorPeriod);
-  const k = Math.floor(pos);
-  const f = pos - k;
 
   painter.pushClip(m, m, area, area);
   for (let sj = -1; sj <= s.rows + 1; sj++) {
@@ -42,11 +40,20 @@ export function renderTextLoop({ painter, state, t }: RenderContext) {
       let x = m + n * tileW;
       let y = m + sj * rowH;
       let vr = sj;
+      // per-line override: 0 auto · ±1 forced direction · 2 still; speed = whole-lap multiplier
+      const li = mod(horizontal ? sj : n, s.lineDir.length);
+      const code = s.lineDir[li];
+      const mult = s.lineSpeed[li] || 1;
+      const p = pos * mult;
+      const k = Math.floor(p);
+      const f = p - k;
       if (horizontal) {
-        const d = s.alt ? (mod(sj, 2) ? -1 : 1) * sign : sign;
+        const auto = s.alt ? (mod(sj, 2) ? -1 : 1) * sign : sign;
+        const d = code === 0 ? auto : code === 2 ? 0 : code;
         x += d * f * tileW;
       } else {
-        const d = s.alt ? (mod(n, 2) ? -1 : 1) * sign : sign;
+        const auto = s.alt ? (mod(n, 2) ? -1 : 1) * sign : sign;
+        const d = code === 0 ? auto : code === 2 ? 0 : code;
         y += d * f * rowH;
         vr = sj - d * k;
       }
