@@ -6,8 +6,8 @@ export type WaveMode = 'diag' | 'row' | 'col' | 'radial' | 'random';
 export type ColorMode = 'cycle' | 'row' | 'col' | 'random';
 export type ShapeMotion = 'weight' | 'rotate' | 'flip' | 'scale';
 export type ShapeLayout = 'tile' | 'loose';
-export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'random';
-export type TileMotion = 'scroll' | 'swing' | 'flip' | 'rotate' | 'still';
+export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'turns' | 'random';
+export type TileMotion = 'scroll' | 'rows' | 'cols' | 'flip' | 'rotate' | 'still';
 export type ScrollDir = 'l' | 'r' | 'u' | 'd' | 'ul' | 'ur' | 'dl' | 'dr';
 export type ExportFormat = 'png' | 'svg' | 'gif' | 'mp4' | 'webm';
 
@@ -47,9 +47,17 @@ export interface State {
     dir: ScrollDir;
     /** swap the light and dark tone of the tile */
     invert: boolean;
+    /** full laps of the lattice per loop — always a whole number so the loop stays seamless */
+    laps: number;
+    /** odd rows shift by this fraction of a cell (brick layout) */
+    brick: number;
+    /** colour each shape from the whole palette instead of the first colour only */
+    multi: boolean;
     cols: number;
     rows: number;
     gap: number;
+    /** tile layout spacing: negative = shapes grow past their cell and overlap */
+    tileGap: number;
     margin: number;
     motion: ShapeMotion;
     arrange: 'cycle' | 'random';
@@ -94,17 +102,21 @@ export const DEFAULT_STATE: State = {
   rhythm: { duration: 4, easing: 'cubic', loop: 'pingpong', stagger: 0.6, wave: 'diag' },
   weight: { min: 100, max: 900, invert: false },
   color: { bg: '#0800b2', fg: ['#fdfdfd', '#fff11c', '#ba2016'], mode: 'cycle', seed: 7 },
-  assets: { selected: ['pattern-01'], keepColors: false },
+  assets: { selected: ['chatbox-02'], keepColors: false },
   shape: {
     layout: 'tile',
-    tiles: 2,
-    rule: 'mirror',
+    tiles: 3,
+    rule: 'random',
     tileMotion: 'scroll',
     dir: 'l',
-    invert: true,
+    invert: false,
+    laps: 1,
+    brick: 0,
+    multi: false,
     cols: 5,
     rows: 5,
     gap: 0.12,
+    tileGap: -0.1,
     margin: 0.06,
     motion: 'weight',
     arrange: 'cycle',

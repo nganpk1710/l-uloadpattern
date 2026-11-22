@@ -85,8 +85,8 @@ Static site, chạy được trên Vercel / Netlify / GitHub Pages (`base: './'`
 
 ## Tile liền khít (Shape Loop)
 
-- Mỗi asset là **một tile 1080 duy nhất** (ví dụ `pattern-01.svg`). Tile phủ kín ô, không gap, không lề; các ô được **xoay 90° / lật** theo quy tắc: Giữ nguyên, Đối xứng, Cờ vua, Chong chóng, Xoay vòng, Ngẫu nhiên.
-- Lưới nhanh 1×1 · 2×2 · 3×3 · 4×4 · 6×6 · 8×8; nút **Đảo sáng / tối** đổi màu hình và nền (màu lấy từ bộ màu thương hiệu).
-- Chuyển động: **Loop trượt** (8 hướng, vòng lặp liền mạch theo chu kỳ quy tắc), Đưa qua lại, Lật, Xoay, Đứng yên. Easing / độ lan sóng điều khiển nhịp.
-- "Lưới rời" vẫn giữ chế độ cũ (có gap/lề).
-- **Nét Thin → Black chỉ áp dụng cho chữ** (pattern Text Offset): chữ nguyên vẹn, không đóng khung trong shape. "Số lớp chữ màu" + "Biên độ lớp chữ" điều khiển các lớp chữ đỏ/vàng phía sau trượt trái ↔ phải.
+- Asset là **một shape duy nhất** (ví dụ `chatbox-02.svg`). Toolkit đo vùng vẽ thật của shape, nhân bản ra lưới và **xoay 90° / lật** từng ô theo quy tắc (Đối xứng, Cờ vua, Chong chóng, Xoay vòng, Xoay ngẫu nhiên, Xoay + lật ngẫu nhiên). Phím `R` đổi seed để bốc lại ngẫu nhiên.
+- **Khoảng cách lưới** cho phép âm: shape lớn hơn ô và khít/chồng vào nhau. **Lệch hàng (brick)** dịch so le hàng lẻ.
+- **Seamless Loop** (mục riêng, tách khỏi Thin→Black): Cả lưới / Hàng xen kẽ / Cột xen kẽ chạy theo 8 hướng, hoặc Lật / Xoay / Đứng yên. Mỗi loop chạy đúng một số nguyên chu kỳ của lưới nên khung đầu và cuối khớp tuyệt đối; "Số vòng mỗi loop" để chạy nhanh hơn.
+- Asset nguyên tile có nền riêng (ví dụ `pattern-01.svg`) vẫn được hỗ trợ: phủ kín ô, không gap.
+- **Thin → Black chỉ áp dụng cho chữ** (Text Offset, Wide→Narrow) và Lưới rời. Chữ nguyên vẹn; "Số lớp chữ màu" + "Biên độ lớp chữ" điều khiển các lớp chữ đỏ/vàng trượt trái ↔ phải sau lớp xanh.

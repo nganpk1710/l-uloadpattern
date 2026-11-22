@@ -1,5 +1,6 @@
 import type { Mat } from './math';
 import { IDENTITY } from './math';
+import { luminance } from './color';
 
 export interface ShapePath {
   d: string;
@@ -14,6 +15,10 @@ export interface ShapeAsset {
   name: string;
   vb: { x: number; y: number; w: number; h: number };
   paths: ShapePath[];
+  /** bounding box of the visible artwork (clamped to the viewBox) — what tiles and grids fit to */
+  bbox: { x: number; y: number; w: number; h: number };
+  /** true when the artwork mixes light and dark fills (a full tile with its own background) */
+  twoTone: boolean;
   builtin: boolean;
   /** original SVG markup (used to persist uploads) */
   source: string;
@@ -30,6 +35,7 @@ const rawShapes = import.meta.glob('../assets/shapes/*.svg', {
 }) as Record<string, string>;
 
 const LABELS: Record<string, string> = {
+  'chatbox-02': 'Hộp thoại 02',
   'pattern-01': 'Pattern LƯU LOAD 01',
   frame: 'Khung vòm',
   loa: 'Loa',
@@ -40,17 +46,19 @@ const LABELS: Record<string, string> = {
   line: 'Đường nét',
   text: 'Chữ LOAD',
 };
-const ORDER = ['pattern-01', 'frame', 'loa', 'chatbox', 'chatbox-mirror', 'arrow-bold', 'arrow-space', 'line', 'text'];
+const ORDER = ['chatbox-02', 'pattern-01', 'frame', 'loa', 'chatbox', 'chatbox-mirror', 'arrow-bold', 'arrow-space', 'line', 'text'];
 
 const SKIP_TAGS = new Set(['defs', 'clippath', 'mask', 'symbol', 'style', 'title', 'desc', 'metadata', 'image', 'text', 'use', 'pattern', 'lineargradient', 'radialgradient', 'filter']);
 
-function parseStyleClasses(doc: Document): Record<string, string> {
+function parseStyleClasses(doc: Document, clips: Record<string, string>): Record<string, string> {
   const map: Record<string, string> = {};
   doc.querySelectorAll('style').forEach((s) => {
     const css = s.textContent || '';
     for (const m of css.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
       const fill = /fill\s*:\s*([^;]+)/.exec(m[2]);
       if (fill) map[m[1]] = fill[1].trim();
+      const clip = /clip-path\s*:\s*url\(#([^)]+)\)/.exec(m[2]);
+      if (clip) clips[m[1]] = clip[1];
     }
   });
   return map;
@@ -123,12 +131,35 @@ export function parseSvg(source: string, id: string, name: string, builtin = fal
   const svg = doc.documentElement;
   if (!svg || svg.tagName.toLowerCase() !== 'svg' || doc.querySelector('parsererror')) return null;
 
-  const classes = parseStyleClasses(doc);
+  let vb = svg.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number);
+  if (!vb || vb.length !== 4 || vb.some((n) => !Number.isFinite(n)) || vb[2] <= 0 || vb[3] <= 0) {
+    const w = parseFloat(svg.getAttribute('width') || '') || 100;
+    const h = parseFloat(svg.getAttribute('height') || '') || 100;
+    vb = [0, 0, w, h];
+  }
+  const clipClasses: Record<string, string> = {};
+  const classes = parseStyleClasses(doc, clipClasses);
   const paths: ShapePath[] = [];
+
+  /** A group clipped to a rectangle that lies entirely outside the artboard draws nothing. */
+  const clippedAway = (el: Element): boolean => {
+    const attr = /url\(#([^)]+)\)/.exec(el.getAttribute('clip-path') || '')?.[1];
+    const cls = (el.getAttribute('class') || '').split(/\s+/).map((c) => clipClasses[c]).find(Boolean);
+    const id = attr ?? cls;
+    if (!id) return false;
+    const rect = doc.getElementById(id)?.querySelector('rect');
+    if (!rect) return false;
+    const x = num(rect, 'x');
+    const y = num(rect, 'y');
+    const w = num(rect, 'width');
+    const h = num(rect, 'height');
+    return x + w <= vb![0] || y + h <= vb![1] || x >= vb![0] + vb![2] || y >= vb![1] + vb![3];
+  };
 
   const walk = (el: Element, parentM: Mat, parentFill: string | null, parentEvenodd: boolean) => {
     const tag = el.tagName.toLowerCase();
     if (SKIP_TAGS.has(tag)) return;
+    if (clippedAway(el)) return;
 
     let m = parentM;
     const tr = (el as SVGGraphicsElement).transform?.baseVal;
@@ -156,13 +187,40 @@ export function parseSvg(source: string, id: string, name: string, builtin = fal
   walk(svg, IDENTITY, null, false);
   if (!paths.length) return null;
 
-  let vb = svg.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number);
-  if (!vb || vb.length !== 4 || vb.some((n) => !Number.isFinite(n)) || vb[2] <= 0 || vb[3] <= 0) {
-    const w = parseFloat(svg.getAttribute('width') || '') || 100;
-    const h = parseFloat(svg.getAttribute('height') || '') || 100;
-    vb = [0, 0, w, h];
+  const view = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
+  const light = paths.some((p) => (p.fill ? luminance(p.fill) > 0.5 : true));
+  const dark = paths.some((p) => (p.fill ? luminance(p.fill) <= 0.5 : false));
+  return { id, name, vb: view, paths, bbox: inkBox(paths, view), twoTone: light && dark, builtin, source };
+}
+
+/** Measure the artwork with a throw-away SVG element (browser only); falls back to the viewBox. */
+function inkBox(paths: ShapePath[], vb: ShapeAsset['vb']): ShapeAsset['bbox'] {
+  try {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
+    document.body.appendChild(svg);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of paths) {
+      const el = document.createElementNS(ns, 'path');
+      el.setAttribute('d', p.d);
+      svg.appendChild(el);
+      const b = el.getBBox();
+      const m = p.matrix;
+      for (const [x, y] of [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]]) {
+        const X = m[0] * x + m[2] * y + m[4];
+        const Y = m[1] * x + m[3] * y + m[5];
+        x0 = Math.min(x0, X); y0 = Math.min(y0, Y); x1 = Math.max(x1, X); y1 = Math.max(y1, Y);
+      }
+    }
+    svg.remove();
+    x0 = Math.max(x0, vb.x); y0 = Math.max(y0, vb.y);
+    x1 = Math.min(x1, vb.x + vb.w); y1 = Math.min(y1, vb.y + vb.h);
+    if (x1 - x0 > 1 && y1 - y0 > 1) return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  } catch {
+    /* fall through */
   }
-  return { id, name, vb: { x: vb[0], y: vb[1], w: vb[2], h: vb[3] }, paths, builtin, source };
+  return { ...vb };
 }
 
 const mulLocal = (A: Mat, B: Mat): Mat => [
