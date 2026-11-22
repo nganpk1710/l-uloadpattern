@@ -2,6 +2,7 @@ import { capHeight, measure } from '../core/fonts';
 import { clamp, compose, scale, translate } from '../core/math';
 import { FRAME } from '../core/painter';
 import { progress, waveOffset, weightAt } from '../core/timeline';
+import { renderTextLoop } from './textLoop';
 import { pickColor, type RenderContext } from './types';
 
 const ECHO_LAG = 0.035;
@@ -10,9 +11,11 @@ const ECHO_LAG = 0.035;
  * 02 · Text Transform Offset — stacked, ultra-tall lines of type. Every line slides sideways by whole
  * tiles (so the loop is seamless at any weight), swells from Thin to Black, and leaves coloured echoes behind.
  */
-export function renderTextOffset({ painter, state, t }: RenderContext) {
+export function renderTextOffset(rc: RenderContext) {
+  if (rc.state.text.mode === 'loop') return renderTextLoop(rc);
+  const { painter, state, t } = rc;
   const s = state.text;
-  const text = (s.content || ' ').toUpperCase();
+  const text = s.upper ? (s.content || ' ').toUpperCase() : s.content || ' ';
   const m = FRAME * s.margin;
   const area = FRAME - m * 2;
   const rowH = area / s.rows;
@@ -34,8 +37,8 @@ export function renderTextOffset({ painter, state, t }: RenderContext) {
     for (let k = s.echo; k >= 0; k--) {
       const e = progress(state, t, off, k * ECHO_LAG);
       const w = weightAt(state, e);
-      const met = measure(text, w);
-      const unit = met.adv + cap * 0.45; // text + breathing gap = one tile
+      const met = measure(text, w, s.tracking);
+      const unit = met.adv + cap * s.wordGap; // text + breathing gap = one tile
       const sx = tileW / unit;
 
       const colors = state.color.fg;
@@ -54,6 +57,7 @@ export function renderTextOffset({ painter, state, t }: RenderContext) {
         if (x > m + area || x + tileW < m) continue;
         painter.text(text, compose(translate(x, baseline), scale(sx, sy)), {
           weight: w,
+          tracking: s.tracking,
           fill,
           alpha,
         });

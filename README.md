@@ -14,13 +14,14 @@ npm run build      # kiểm tra kiểu + build ra dist/
 npm run preview
 ```
 
-## 3 pattern
+## 2 pattern · mỗi pattern có 2 chế độ tách biệt
 
 | # | Pattern | Ý tưởng |
 |---|---|---|
-| 01 | **Shape Loop** | Lưới hình khối đặc. Mỗi ô "thở" từ đường viền hairline (Thin) đến khối đặc (Black), sóng lan qua lưới. Có thể kèm xoay 90°, lật, co giãn. |
-| 02 | **Text Offset** | Các dòng chữ siêu cao xếp chồng, trượt ngang theo số nguyên ô nên loop luôn liền mạch, nét chữ chạy Thin → Black, có thể thêm lớp dư ảnh (echo). |
-| 03 | **Wide → Narrow** | Mỗi hàng chia cột; độ rộng cột co giãn hẹp ↔ rộng nhưng tổng luôn lấp đầy khung. Chữ hoặc shape được kéo giãn theo ô. |
+| 01 | **Shape** | **Loop**: một shape lặp thành nền theo Tile Type (Grid, Brick by Row/Column, Hex by Column/Row), xoay/lật theo quy tắc hoặc ngẫu nhiên, chạy xuyên suốt. **Thin → Black**: lưới shape, nét viền trong tăng từ hairline đến khối đặc. |
+| 02 | **Text** | **Loop**: nền chữ lặp chạy một chiều (ngang/dọc, có thể xen kẽ ngược chiều). **Thin → Black**: nét chữ từ mảnh đến đậm, kèm các lớp chữ màu trượt trái ↔ phải. |
+
+Hai chế độ không bao giờ hiện cùng lúc: chọn ở mục **Chế độ**, bảng điều khiển của chế độ kia được ẩn hoàn toàn.
 
 ## Điều khiển trực tiếp
 
@@ -31,7 +32,7 @@ npm run preview
 - **Màu:** 8 màu thương hiệu, 8 bộ phối nhanh, chọn nền và nhiều màu hình, phối ngẫu nhiên có kiểm tra tương phản.
 - **Preview & Xuất file:** PNG (1080 / 2160 / 4096), SVG vector (chữ được chuyển thành outline), GIF, MP4, WebM (loop liền mạch, đúng từng khung).
 
-Phím tắt: `Space` phát/dừng · `1` `2` `3` đổi pattern · `R` ngẫu nhiên · `←` `→` bước khung.
+Phím tắt: `Space` phát/dừng · `1` `2` đổi pattern · `R` ngẫu nhiên · `←` `→` bước khung.
 
 Trạng thái được lưu trong trình duyệt. Máy bật "giảm chuyển động" sẽ mở ở trạng thái dừng.
 
@@ -83,10 +84,10 @@ Pattern chỉ gọi `painter.shape / text / rect`, nên cùng một code ra prev
 
 Static site, chạy được trên Vercel / Netlify / GitHub Pages (`base: './'`). Vercel: import repo, framework Vite, build `npm run build`, output `dist`.
 
-## Tile liền khít (Shape Loop)
+## Loop (nền lặp, seamless)
 
-- Asset là **một shape duy nhất** (ví dụ `chatbox-02.svg`). Toolkit đo vùng vẽ thật của shape, nhân bản ra lưới và **xoay 90° / lật** từng ô theo quy tắc (Đối xứng, Cờ vua, Chong chóng, Xoay vòng, Xoay ngẫu nhiên, Xoay + lật ngẫu nhiên). Phím `R` đổi seed để bốc lại ngẫu nhiên.
-- **Khoảng cách lưới** cho phép âm: shape lớn hơn ô và khít/chồng vào nhau. **Lệch hàng (brick)** dịch so le hàng lẻ.
-- **Seamless Loop** (mục riêng, tách khỏi Thin→Black): Cả lưới / Hàng xen kẽ / Cột xen kẽ chạy theo 8 hướng, hoặc Lật / Xoay / Đứng yên. Mỗi loop chạy đúng một số nguyên chu kỳ của lưới nên khung đầu và cuối khớp tuyệt đối; "Số vòng mỗi loop" để chạy nhanh hơn.
-- Asset nguyên tile có nền riêng (ví dụ `pattern-01.svg`) vẫn được hỗ trợ: phủ kín ô, không gap.
-- **Thin → Black chỉ áp dụng cho chữ** (Text Offset, Wide→Narrow) và Lưới rời. Chữ nguyên vẹn; "Số lớp chữ màu" + "Biên độ lớp chữ" điều khiển các lớp chữ đỏ/vàng trượt trái ↔ phải sau lớp xanh.
+- Loop luôn chạy một chiều, tốc độ đều, đi đúng một số nguyên chu kỳ lưới (hoặc ô chữ) nên khung cuối nối khung đầu. "Số vòng mỗi loop" để chạy nhanh hơn.
+- **Shape:** asset là một shape duy nhất (ví dụ `chatbox-02.svg`). Tile type, Brick offset, Width / Height, quy tắc xoay/lật, khoảng cách lưới âm để shape chồng khít, đảo sáng/tối, nhiều màu. Kiểu chạy: cả lưới, hàng xen kẽ, cột xen kẽ (8 hướng), hoặc lật / xoay / đứng yên. Phím `R` bốc lại ngẫu nhiên.
+- **Text:** chiều chạy ngang trái/phải hoặc dọc lên/xuống, xen kẽ ngược chiều.
+- **Type** (chỉ cho Text): dòng chữ, viết hoa, trọng lượng cố định cho Loop, giãn chữ, khoảng cách giữa các chữ lặp.
+- Asset nguyên tile có nền riêng (ví dụ `pattern-01.svg`) phủ kín ô, không gap.

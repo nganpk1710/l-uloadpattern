@@ -26,9 +26,9 @@ export async function getOutliner(): Promise<Outliner | null> {
     const upm = (font as unknown as { unitsPerEm: number }).unitsPerEm || 1000;
     const memo = new Map<string, string>();
 
-    cached = (str, weight) => {
+    cached = (str, weight, tracking = 0) => {
       const w = Math.round(weight);
-      const key = `${w}|${str}`;
+      const key = `${w}|${tracking}|${str}`;
       let d = memo.get(key);
       if (d != null) return d;
 
@@ -39,9 +39,9 @@ export async function getOutliner(): Promise<Outliner | null> {
       for (const ch of chars) {
         const glyph = font.charToGlyph(ch);
         placed.push({ cmds: font.getPath(ch, x, 0, 100).commands, x });
-        x += (glyph.advanceWidth * 100) / upm;
+        x += (glyph.advanceWidth * 100) / upm + tracking * 100;
       }
-      const target = measure(str, w).adv;
+      const target = measure(str, w, tracking).adv;
       const k = x > 0 && target > 0 ? target / x : 1;
 
       d = placed

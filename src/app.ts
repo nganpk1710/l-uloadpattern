@@ -33,7 +33,7 @@ export async function startApp(root: HTMLElement) {
     h(
       'div',
       { class: 'top__right' },
-      h('span', { class: 'top__keys' }, h('kbd', {}, 'Space'), ' phát/dừng  ', h('kbd', {}, '1'), h('kbd', {}, '2'), h('kbd', {}, '3'), ' đổi pattern  ', h('kbd', {}, 'R'), ' ngẫu nhiên'),
+      h('span', { class: 'top__keys' }, h('kbd', {}, 'Space'), ' phát/dừng  ', h('kbd', {}, '1'), h('kbd', {}, '2'), ' đổi pattern  ', h('kbd', {}, 'R'), ' ngẫu nhiên'),
       resetBtn,
     ),
     h('span', { class: 'top__load', 'aria-hidden': 'true' }),
@@ -49,9 +49,11 @@ export async function startApp(root: HTMLElement) {
   const sync = () => {
     const s = store.state;
     document.documentElement.dataset.pattern = s.pattern;
+    let n = 0;
     for (const sec of allSections) {
       sec.ctls.forEach((c) => c.sync(s));
       sec.el.hidden = sec.ctls.every((c) => c.el.hidden);
+      if (!sec.el.hidden) sec.el.querySelector('.sec__index')!.textContent = String(++n).padStart(2, '0');
     }
     stage.sync(s);
   };
@@ -65,7 +67,7 @@ export async function startApp(root: HTMLElement) {
     if (e.code === 'Space' && !(t instanceof HTMLButtonElement)) {
       e.preventDefault();
       stage.togglePlay();
-    } else if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) {
+    } else if (['Digit1', 'Digit2'].includes(e.code)) {
       store.set('pattern', PATTERNS[+e.code.slice(-1) - 1].id as PatternId);
     } else if (e.key === 'r' || e.key === 'R') {
       store.set('color.seed', (Math.random() * 1e6) | 0);

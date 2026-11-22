@@ -80,14 +80,16 @@ const getCtx = () => {
   return mctx;
 };
 
-export function measure(str: string, weight: number): Metrics {
+export function measure(str: string, weight: number, tracking = 0): Metrics {
   const w = Math.round(weight / 10) * 10; // bucket for cache
-  const key = `${w}|${str}`;
+  const key = `${w}|${tracking}|${str}`;
   let m = cache.get(key);
   if (!m) {
     const ctx = getCtx();
     ctx.font = `${w} 100px ${FONT_FAMILY}`;
+    (ctx as any).letterSpacing = `${tracking * 100}px`;
     const t = ctx.measureText(str);
+    (ctx as any).letterSpacing = '0px';
     m = { adv: t.width, inkL: t.actualBoundingBoxLeft, inkR: t.actualBoundingBoxRight, asc: t.actualBoundingBoxAscent };
     cache.set(key, m);
   }

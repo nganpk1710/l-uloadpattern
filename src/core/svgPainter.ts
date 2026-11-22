@@ -8,7 +8,7 @@ const mat = (m: Mat) => `matrix(${m.map((v) => round(v, 4)).join(' ')})`;
 const isIdentity = (m: Mat) => m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0;
 
 /** Returns SVG path data for a string at font-size 100 (baseline at origin), or null if unavailable. */
-export type Outliner = (str: string, weight: number) => string | null;
+export type Outliner = (str: string, weight: number, tracking?: number) => string | null;
 
 /**
  * Vector backend. Produces a standalone SVG that mirrors the canvas output.
@@ -69,14 +69,14 @@ export class SvgPainter implements Painter {
 
   text(str: string, m: Mat, o: TextOpts) {
     const op = o.alpha != null && o.alpha < 1 ? ` fill-opacity="${round(o.alpha, 3)}"` : '';
-    const d = this.outline?.(str, o.weight);
+    const d = this.outline?.(str, o.weight, o.tracking ?? 0);
     if (d) {
       this.body.push(`<path d="${d}" transform="${mat(m)}" fill="${o.fill}"${op}/>`);
     } else {
       // Live text fallback — needs "Big Shoulders" installed on the viewing machine
       const family = FONT_FAMILY.replace(/"/g, "'");
       this.body.push(
-        `<text transform="${mat(m)}" font-family="${family}" font-size="100" font-weight="${Math.round(o.weight)}" fill="${o.fill}"${op}>${esc(str)}</text>`,
+        `<text transform="${mat(m)}" font-family="${family}" font-size="100" font-weight="${Math.round(o.weight)}" letter-spacing="${round((o.tracking ?? 0) * 100, 2)}" fill="${o.fill}"${op}>${esc(str)}</text>`,
       );
     }
   }

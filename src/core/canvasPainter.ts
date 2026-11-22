@@ -77,6 +77,7 @@ export class CanvasPainter implements Painter {
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
     ctx.fillStyle = o.fill;
+    (ctx as any).letterSpacing = `${(o.tracking ?? 0) * 100}px`;
     ctx.fillText(str, 0, 0);
     ctx.restore();
   }

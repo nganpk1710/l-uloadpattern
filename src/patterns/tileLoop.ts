@@ -1,6 +1,5 @@
 import type { ShapeAsset } from '../core/assets';
 import { luminance } from '../core/color';
-import { EASINGS } from '../core/easing';
 import { compose, frac, rotate, scale, translate } from '../core/math';
 import { FRAME } from '../core/painter';
 import { hash01 } from '../core/rng';
@@ -32,7 +31,7 @@ interface Orientation {
   fy: boolean;
 }
 
-/** Cells until the orientation rule repeats. Random rules repeat every `n` cells (the lattice size). */
+/** Cells until the orientation rule repeats. Random rules repeat every `n` cells. */
 function period(rule: TileRule, n: number): number {
   switch (rule) {
     case 'same':
@@ -77,40 +76,49 @@ function orientation(rule: TileRule, ci: number, cj: number, n: number, seed: nu
 }
 
 /**
- * Seamless tile layout. The asset is a single motif; every cell shows it rotated / mirrored by a rule
- * (or at random). The whole field — or each row / column on its own — travels across the frame and wraps,
- * so the loop is perfect: it always travels a whole number of lattice periods.
+ * Loop — a repeated background. The asset is a single motif placed on a lattice (Grid, Brick by Row /
+ * Column, Hex by Row / Column) and rotated / mirrored per cell by a rule or at random. The whole field —
+ * or each row / column on its own — travels forever in one direction. It always moves a whole number of
+ * lattice periods, so the last frame meets the first.
  */
 export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
   const s = state.shape;
-  const n = s.tiles;
-  const cell = FRAME / n;
-  const ease = EASINGS[state.rhythm.easing];
   const first = assets[0];
+
+  // ---- lattice geometry ----
+  const w = s.tileW;
+  const h = s.tileLock ? s.tileW : s.tileH;
+  const colStep = s.tileType === 'hexCol' ? w * 0.75 : w;
+  const rowStep = s.tileType === 'hexRow' ? h * 0.75 : h;
+  const rowShift = s.tileType === 'brickRow' ? s.brickOffset * w : s.tileType === 'hexRow' ? w / 2 : 0;
+  const colShift = s.tileType === 'brickCol' ? s.brickOffset * h : s.tileType === 'hexCol' ? h / 2 : 0;
 
   // ---- colour: motifs take the foreground colour, full tiles keep their two tones ----
   const light = state.color.fg[0];
   const dark = state.color.bg;
   if (!first.twoTone && s.invert && !state.assets.keepColors) painter.rect(0, 0, FRAME, FRAME, light);
 
-  // ---- loop length: a whole number of periods in cells ----
-  let L = period(s.rule, n);
-  if (assets.length > 1) L = lcm(L, n);
-  if (s.brick > 0) L = lcm(L, 2);
+  // ---- loop length: a whole number of lattice periods ----
+  const fgN = state.color.fg.length;
+  let R = Math.min(12, Math.max(4, Math.ceil(FRAME / Math.min(colStep, rowStep)) + 1));
+  if (s.multi) R = Math.ceil(R / fgN) * fgN;
+  let L = period(s.rule, R);
+  if (assets.length > 1) L = lcm(L, R);
+  if (rowShift || colShift) L = lcm(L, 2);
   L = Math.min(L, 48) * Math.max(1, Math.round(s.laps));
-  const pos = s.tileMotion === 'scroll' || s.tileMotion === 'rows' || s.tileMotion === 'cols' ? ease(frac(t)) * L : 0;
-  const [dx, dy] = DIRS[s.dir];
 
-  const slots: number[] = [];
-  for (let k = -1; k <= n + 1; k++) slots.push(k);
-
+  const travelling = s.tileMotion === 'scroll' || s.tileMotion === 'rows' || s.tileMotion === 'cols';
+  const pos = travelling ? frac(t) * L : 0; // constant speed — it never turns back
   const k = Math.floor(pos);
   const f = pos - k;
+  const [dx, dy] = DIRS[s.dir];
+
+  const nx = Math.ceil(FRAME / colStep) + 2;
+  const ny = Math.ceil(FRAME / rowStep) + 2;
 
   painter.pushClip(0, 0, FRAME, FRAME);
-  for (const sj of slots) {
-    for (const si of slots) {
-      // travel per mode
+  for (let sj = -2; sj <= ny; sj++) {
+    for (let si = -2; si <= nx; si++) {
       let sx = 0;
       let sy = 0;
       if (s.tileMotion === 'scroll') {
@@ -121,49 +129,43 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
       } else if (s.tileMotion === 'cols') {
         sy = (mod(si, 2) ? -1 : 1) * (dy || 1);
       }
-      // virtual lattice index of the shape sitting in this slot (it keeps its orientation while it travels)
+      // the shape sitting in this slot keeps its identity (orientation, colour) while it travels
       const vi = si - sx * k;
       const vj = sj - sy * k;
-      const px = (si + sx * f) * cell;
-      const py = (sj + sy * f) * cell;
-      const brick = mod(vj, 2) ? s.brick * cell : 0;
-      const x = px + brick;
-      const y = py;
-      if (x >= FRAME || x + cell <= 0 || y >= FRAME || y + cell <= 0) continue;
+      const x = si * colStep + sx * f * colStep + (mod(vj, 2) ? rowShift : 0);
+      const y = sj * rowStep + sy * f * rowStep + (mod(vi, 2) ? colShift : 0);
+      if (x >= FRAME || x + w <= 0 || y >= FRAME || y + h <= 0) continue;
 
-      const o = orientation(s.rule, vi, vj, n, state.color.seed);
+      const o = orientation(s.rule, vi, vj, R, state.color.seed);
       let spin = 0;
       let flip = 1;
       if (s.tileMotion === 'flip' || s.tileMotion === 'rotate') {
-        const off = waveOffset(state.rhythm.wave, mod(vi, n), mod(vj, n), n, n, state.color.seed);
+        const off = waveOffset(state.rhythm.wave, mod(vi, R), mod(vj, R), R, R, state.color.seed);
         const e = progress(state, t, off);
         if (s.tileMotion === 'flip') flip = Math.cos(Math.min(1.1, Math.max(-0.1, e)) * Math.PI);
         else spin = e * (Math.PI / 2) * ((vi + vj) % 2 ? -1 : 1);
       }
 
-      const asset: ShapeAsset = pickAsset(state, assets, mod(vi, n), mod(vj, n));
+      const asset: ShapeAsset = pickAsset(state, assets, mod(vi, R), mod(vj, R));
       const b = asset.bbox;
-      // full tiles fill their cell exactly; motifs fit their longest side to the cell, grown by the (negative) gap
       const fullTile = asset.twoTone;
-      const sc = fullTile
-        ? (cell / Math.max(b.w, b.h)) * OVERSCAN
-        : (cell * (1 - s.tileGap)) / Math.max(b.w, b.h);
+      const sc = (Math.min(w, h) * (1 - s.tileGap)) / Math.max(b.w, b.h);
       const m = compose(
-        translate(x + cell / 2, y + cell / 2),
+        translate(x + w / 2, y + h / 2),
         rotate(spin),
         scale(flip, 1),
         rotate((o.quarter * Math.PI) / 2),
         scale(o.fx ? -1 : 1, o.fy ? -1 : 1),
-        scale(fullTile ? (cell / b.w) * OVERSCAN : sc, fullTile ? (cell / b.h) * OVERSCAN : sc),
+        fullTile ? scale((w / b.w) * OVERSCAN, (h / b.h) * OVERSCAN) : scale(sc),
         translate(-(b.x + b.w / 2), -(b.y + b.h / 2)),
       );
 
       let fill: string | null | ((o: string | null) => string);
       if (state.assets.keepColors) fill = null;
       else if (fullTile) fill = (orig) => ((orig ? luminance(orig) > 0.5 : true) !== s.invert ? light : dark);
-      else fill = s.invert ? dark : s.multi ? pickColor(state, mod(vi, n), mod(vj, n)) : light;
+      else fill = s.invert ? dark : s.multi ? pickColor(state, mod(vi, R), mod(vj, R)) : light;
 
-      if (fullTile) painter.pushClip(x - 0.6, y - 0.6, cell + 1.2, cell + 1.2);
+      if (fullTile) painter.pushClip(x - 0.6, y - 0.6, w + 1.2, h + 1.2);
       painter.shape(asset, m, { fill, inset: 9999 });
       if (fullTile) painter.popClip();
     }

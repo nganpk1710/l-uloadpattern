@@ -1,11 +1,15 @@
 import type { EasingId } from './easing';
 
-export type PatternId = 'shape' | 'text' | 'wide';
+export type PatternId = 'shape' | 'text';
 export type LoopStyle = 'pingpong' | 'load';
 export type WaveMode = 'diag' | 'row' | 'col' | 'radial' | 'random';
 export type ColorMode = 'cycle' | 'row' | 'col' | 'random';
 export type ShapeMotion = 'weight' | 'rotate' | 'flip' | 'scale';
+/** tile = Loop (repeated background) · loose = Thin → Black grid */
 export type ShapeLayout = 'tile' | 'loose';
+export type TileType = 'grid' | 'brickRow' | 'brickCol' | 'hexCol' | 'hexRow';
+export type TextMode = 'weight' | 'loop';
+export type TextDir = 'l' | 'r' | 'u' | 'd';
 export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'turns' | 'random';
 export type TileMotion = 'scroll' | 'rows' | 'cols' | 'flip' | 'rotate' | 'still';
 export type ScrollDir = 'l' | 'r' | 'u' | 'd' | 'ul' | 'ur' | 'dl' | 'dr';
@@ -40,8 +44,14 @@ export interface State {
   };
   shape: {
     layout: ShapeLayout;
-    /** tile layout: number of tiles per side */
-    tiles: number;
+    tileType: TileType;
+    /** tile box size in frame units (1080 = whole frame) */
+    tileW: number;
+    tileH: number;
+    /** keep height equal to width */
+    tileLock: boolean;
+    /** brick types: how far every other row / column is shifted, as a fraction of the tile */
+    brickOffset: number;
     rule: TileRule;
     tileMotion: TileMotion;
     dir: ScrollDir;
@@ -49,8 +59,6 @@ export interface State {
     invert: boolean;
     /** full laps of the lattice per loop — always a whole number so the loop stays seamless */
     laps: number;
-    /** odd rows shift by this fraction of a cell (brick layout) */
-    brick: number;
     /** colour each shape from the whole palette instead of the first colour only */
     multi: boolean;
     cols: number;
@@ -73,17 +81,21 @@ export interface State {
     /** how far the back layers swing sideways, as a fraction of one tile */
     spread: number;
     slide: 'alternate' | 'same' | 'none';
-  };
-  wide: {
-    mode: 'text' | 'shape';
-    chars: string;
-    cols: number;
-    rows: number;
-    gap: number;
-    margin: number;
-    ratio: number;
-    block: boolean;
-    linkWeight: boolean;
+    /** Thin → Black morph, or a continuous repeated-background loop — never both */
+    mode: TextMode;
+    /** loop travel direction */
+    dir: TextDir;
+    /** neighbouring lines (or columns) travel in opposite directions */
+    alt: boolean;
+    /** full tile-lengths travelled per loop */
+    laps: number;
+    /** type — fixed weight used by the loop (100 … 900) */
+    weight: number;
+    /** letter spacing in em */
+    tracking: number;
+    /** breathing room between repeated words, in cap heights */
+    wordGap: number;
+    upper: boolean;
   };
   export: {
     format: ExportFormat;
@@ -105,13 +117,16 @@ export const DEFAULT_STATE: State = {
   assets: { selected: ['chatbox-02'], keepColors: false },
   shape: {
     layout: 'tile',
-    tiles: 3,
+    tileType: 'grid',
+    tileW: 360,
+    tileH: 360,
+    tileLock: true,
+    brickOffset: 0.5,
     rule: 'random',
     tileMotion: 'scroll',
     dir: 'l',
     invert: false,
     laps: 1,
-    brick: 0,
     multi: false,
     cols: 5,
     rows: 5,
@@ -131,17 +146,14 @@ export const DEFAULT_STATE: State = {
     shift: 1,
     spread: 0.18,
     slide: 'none',
-  },
-  wide: {
-    mode: 'text',
-    chars: 'LƯULOAD',
-    cols: 8,
-    rows: 2,
-    gap: 0.03,
-    margin: 0.05,
-    ratio: 6,
-    block: true,
-    linkWeight: true,
+    mode: 'loop',
+    dir: 'l',
+    alt: true,
+    laps: 1,
+    weight: 900,
+    tracking: 0,
+    wordGap: 0.45,
+    upper: true,
   },
   export: {
     format: 'png',
@@ -195,6 +207,7 @@ export class Store {
       /* ignore */
     }
     this.state = mergeKnown(structuredClone(DEFAULT_STATE), saved);
+    if (!['shape', 'text'].includes(this.state.pattern)) this.state.pattern = 'shape';
   }
 
   subscribe(fn: Listener): () => void {

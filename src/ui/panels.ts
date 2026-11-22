@@ -29,46 +29,42 @@ const sec_s = (v: number) => `${v.toFixed(1)}s`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const times = (v: number) => `${v}×`;
 
-export function buildPanels(store: Store, lib: AssetLibrary) {
-  const isShape = (s: { pattern: string }) => s.pattern === 'shape';
-  const isTile = (s: State) => s.pattern === 'shape' && s.shape.layout === 'tile';
-  const isLoose = (s: State) => s.pattern === 'shape' && s.shape.layout === 'loose';
-  const isText = (s: { pattern: string }) => s.pattern === 'text';
-  const isWide = (s: { pattern: string }) => s.pattern === 'wide';
+const px = (v: number) => `${Math.round(v)}px`;
+const signed = (v: number) => (v > 0 ? '+' : '') + pct(v);
 
-  /* ───────────── LEFT · Nội dung & Màu ───────────── */
-  const content = sec(
-    '01',
-    'Nội dung',
-    'Assets đầu vào',
-    assetPanel(store, lib, { show: (s) => isShape(s) || (isWide(s) && s.wide.mode === 'shape') }),
+export function buildPanels(store: Store, lib: AssetLibrary) {
+  const isShape = (s: State) => s.pattern === 'shape';
+  const isText = (s: State) => s.pattern === 'text';
+  /** Loop = repeated background that travels one way. Thin → Black = the weight morph. Never shown together. */
+  const isLoop = (s: State) => (isShape(s) && s.shape.layout === 'tile') || (isText(s) && s.text.mode === 'loop');
+  const isMorph = (s: State) => !isLoop(s);
+  const isTile = (s: State) => isShape(s) && s.shape.layout === 'tile';
+  const isLoose = (s: State) => isShape(s) && s.shape.layout === 'loose';
+  const isTextLoop = (s: State) => isText(s) && s.text.mode === 'loop';
+  const isTextMorph = (s: State) => isText(s) && s.text.mode === 'weight';
+  const travels = (s: State) => isTile(s) && ['scroll', 'rows', 'cols'].includes(s.shape.tileMotion);
+  const brick = (s: State) => isTile(s) && (s.shape.tileType === 'brickRow' || s.shape.tileType === 'brickCol');
+
+  /* ───────────── LEFT · Nội dung, Type & Màu ───────────── */
+  const content = sec('01', 'Nội dung', 'Assets đầu vào', assetPanel(store, lib, { show: isShape }));
+
+  const type = sec(
+    '02',
+    'Type',
+    'Chữ · Big Shoulders',
     textField(store, {
       label: 'Dòng chữ',
       path: 'text.content',
       placeholder: 'LƯU LOAD',
       maxLength: 24,
       chips: ['LƯU LOAD', 'NẠP LẠI', 'CÀ PHÊ VỈA HÈ'],
-      hint: 'Tự động viết hoa · hỗ trợ đủ dấu tiếng Việt',
+      hint: 'Hỗ trợ đủ dấu tiếng Việt',
       show: isText,
     }),
-    segmented(store, {
-      label: 'Chất liệu mỗi ô',
-      path: 'wide.mode',
-      options: [
-        { value: 'text', label: 'Chữ' },
-        { value: 'shape', label: 'Shape' },
-      ],
-      show: isWide,
-    }),
-    textField(store, {
-      label: 'Chuỗi ký tự',
-      path: 'wide.chars',
-      placeholder: 'LƯULOAD',
-      maxLength: 24,
-      chips: ['LƯULOAD', 'NẠPLẠI', 'ABCDEFG'],
-      hint: 'Mỗi ký tự lần lượt nằm trong một cột',
-      show: (s) => isWide(s) && s.wide.mode === 'text',
-    }),
+    toggle(store, { label: 'Viết hoa', path: 'text.upper', show: isText }),
+    slider(store, { label: 'Trọng lượng chữ', path: 'text.weight', min: 100, max: 900, step: 10, fmt: (v) => String(v), hint: '100 Thin → 900 Black · cố định trong chế độ Loop', show: isTextLoop }),
+    slider(store, { label: 'Giãn chữ', path: 'text.tracking', min: -0.1, max: 0.5, step: 0.005, fmt: (v) => `${Math.round(v * 1000) / 10}%`, show: isText }),
+    slider(store, { label: 'Khoảng cách giữa các chữ lặp', path: 'text.wordGap', min: 0, max: 1.5, step: 0.05, fmt: pct, show: isText }),
   );
 
   const diceBtn = {
@@ -91,7 +87,7 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
   } as Ctl;
 
   const colors = sec(
-    '02',
+    '03',
     'Màu thương hiệu',
     '8 màu',
     colorPresets(store),
@@ -111,12 +107,36 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
   );
 
   /* ───────────── RIGHT · điều khiển chuyển động ───────────── */
+  const mode = sec(
+    '04',
+    'Chế độ',
+    'Loop ⟷ Thin → Black',
+    segmented(store, {
+      label: 'Chuyển động',
+      path: 'text.mode',
+      options: [
+        { value: 'loop', label: 'Loop · nền lặp', title: 'Nền chữ lặp chạy xuyên suốt một chiều' },
+        { value: 'weight', label: 'Thin → Black', title: 'Nét chữ chuyển từ mảnh đến đậm' },
+      ],
+      show: isText,
+    }),
+    segmented(store, {
+      label: 'Chuyển động',
+      path: 'shape.layout',
+      options: [
+        { value: 'tile', label: 'Loop · nền lặp', title: 'Shape lặp thành nền, chạy xuyên suốt' },
+        { value: 'loose', label: 'Thin → Black', title: 'Lưới shape, nét chuyển từ mảnh đến đậm' },
+      ],
+      show: isShape,
+    }),
+  );
+
   const rhythm = sec(
-    '03',
+    '05',
     'Nhịp điệu',
     'Rhythm & Easing',
     slider(store, { label: 'Thời lượng 1 vòng loop', path: 'rhythm.duration', min: 0.8, max: 12, step: 0.1, fmt: sec_s }),
-    segmented(store, { label: 'Easing', path: 'rhythm.easing', options: EASING_OPTIONS, compact: true }),
+    segmented(store, { label: 'Easing', path: 'rhythm.easing', options: EASING_OPTIONS, compact: true, show: (s) => isMorph(s) || (isTile(s) && ['flip', 'rotate'].includes(s.shape.tileMotion)) }),
     segmented(store, {
       label: 'Kiểu lặp',
       path: 'rhythm.loop',
@@ -124,8 +144,9 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
         { value: 'pingpong', label: 'Mượt · đi & về', title: 'Thin → Black → Thin, liền mạch' },
         { value: 'load', label: 'Nạp · reset', title: 'Nạp đầy rồi quay lại đầu như thanh loading' },
       ],
+      show: isMorph,
     }),
-    slider(store, { label: 'Độ lan sóng', path: 'rhythm.stagger', min: -1, max: 1, step: 0.01, fmt: (v) => (v > 0 ? '+' : '') + pct(v), hint: '0% = cả khung chuyển động cùng lúc · âm = đảo hướng' }),
+    slider(store, { label: 'Độ lan sóng', path: 'rhythm.stagger', min: -1, max: 1, step: 0.01, fmt: signed, hint: '0% = cả khung chuyển động cùng lúc · âm = đảo hướng', show: (s) => isMorph(s) || (isTile(s) && ['flip', 'rotate'].includes(s.shape.tileMotion)) }),
     segmented(store, {
       label: 'Hướng lan',
       path: 'rhythm.wave',
@@ -137,6 +158,7 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
         { value: 'random', label: 'Ngẫu nhiên' },
       ],
       compact: true,
+      show: (s) => isMorph(s) || (isTile(s) && ['flip', 'rotate'].includes(s.shape.tileMotion)),
     }),
     segmented(store, {
       label: 'Chuyển động hình',
@@ -150,22 +172,19 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       compact: true,
       show: isLoose,
     }),
-    segmented(store, {
-      label: 'Chiều dịch chữ',
-      path: 'text.slide',
-      options: [
-        { value: 'alternate', label: 'Xen kẽ' },
-        { value: 'same', label: 'Cùng chiều' },
-        { value: 'none', label: 'Đứng yên' },
-      ],
-      show: isText,
-    }),
   );
 
+  const arrows = [
+    { value: 'ul', label: '↖' }, { value: 'u', label: '↑' }, { value: 'ur', label: '↗' },
+    { value: 'l', label: '←' }, { value: 'r', label: '→' },
+    { value: 'dl', label: '↙' }, { value: 'd', label: '↓' }, { value: 'dr', label: '↘' },
+  ];
+
   const loop = sec(
-    '04',
-    'Seamless Loop',
-    'Shape chạy liền mạch',
+    '06',
+    'Loop',
+    'Nền lặp chạy xuyên suốt',
+    // shape
     segmented(store, {
       label: 'Kiểu chạy',
       path: 'shape.tileMotion',
@@ -180,50 +199,54 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       compact: true,
       show: isTile,
     }),
+    segmented(store, { label: 'Hướng chạy', path: 'shape.dir', options: arrows, compact: true, show: travels }),
+    slider(store, { label: 'Số vòng mỗi loop', path: 'shape.laps', min: 1, max: 4, step: 1, fmt: times, hint: 'Mỗi vòng chạy đúng 1 chu kỳ lưới nên luôn khớp đầu–cuối', show: travels }),
+    // text
     segmented(store, {
       label: 'Hướng chạy',
-      path: 'shape.dir',
+      path: 'text.dir',
       options: [
-        { value: 'ul', label: '↖' }, { value: 'u', label: '↑' }, { value: 'ur', label: '↗' },
-        { value: 'l', label: '←' }, { value: 'r', label: '→' },
-        { value: 'dl', label: '↙' }, { value: 'd', label: '↓' }, { value: 'dr', label: '↘' },
+        { value: 'l', label: '← Ngang trái' },
+        { value: 'r', label: 'Ngang phải →' },
+        { value: 'u', label: '↑ Dọc lên' },
+        { value: 'd', label: 'Dọc xuống ↓' },
       ],
       compact: true,
-      show: (s) => isTile(s) && (s.shape.tileMotion === 'scroll' || s.shape.tileMotion === 'rows' || s.shape.tileMotion === 'cols'),
+      show: isTextLoop,
     }),
-    slider(store, {
-      label: 'Số vòng mỗi loop',
-      path: 'shape.laps',
-      min: 1,
-      max: 4,
-      step: 1,
-      fmt: times,
-      hint: 'Mỗi vòng = chạy đúng 1 chu kỳ lưới nên luôn khớp đầu–cuối. Tăng để chạy nhanh hơn mà không phải rút ngắn thời lượng',
-      show: (s) => isTile(s) && ['scroll', 'rows', 'cols'].includes(s.shape.tileMotion),
-    }),
+    toggle(store, { label: 'Xen kẽ ngược chiều', path: 'text.alt', hint: 'Dòng (hoặc cột) liền kề chạy ngược nhau', show: isTextLoop }),
+    slider(store, { label: 'Số vòng mỗi loop', path: 'text.laps', min: 1, max: 4, step: 1, fmt: times, hint: 'Mỗi vòng = chạy đúng 1 ô chữ (ngang) hoặc 1 chu kỳ màu (dọc)', show: isTextLoop }),
   );
 
   const grid = sec(
-    '05',
-    'Độ dày đặc',
+    '07',
+    'Lưới & Tile',
     'Density & Spacing',
-    // shape — seamless tiles
+    // shape — Loop · tile type
     segmented(store, {
-      label: 'Bố cục',
-      path: 'shape.layout',
+      label: 'Tile type',
+      path: 'shape.tileType',
       options: [
-        { value: 'tile', label: 'Tile liền khít' },
-        { value: 'loose', label: 'Lưới rời' },
+        { value: 'grid', label: 'Grid' },
+        { value: 'brickRow', label: 'Brick by Row' },
+        { value: 'brickCol', label: 'Brick by Column' },
+        { value: 'hexCol', label: 'Hex by Column' },
+        { value: 'hexRow', label: 'Hex by Row' },
       ],
-      show: isShape,
-    }),
-    segmented(store, {
-      label: 'Lưới tile',
-      path: 'shape.tiles',
-      options: [1, 2, 3, 4, 5, 6, 8].map((n) => ({ value: n, label: `${n}×${n}` })),
       compact: true,
       show: isTile,
     }),
+    slider(store, { label: 'Brick offset', path: 'shape.brickOffset', min: 0, max: 1, step: 0.05, fmt: pct, show: brick }),
+    segmented(store, {
+      label: 'Kích thước ô nhanh',
+      path: 'shape.tileW',
+      options: [1080, 540, 360, 270, 180, 135].map((v) => ({ value: v, label: `${1080 / v}×${1080 / v}` })),
+      compact: true,
+      show: isTile,
+    }),
+    slider(store, { label: 'Width', path: 'shape.tileW', min: 90, max: 1080, step: 5, fmt: px, show: isTile }),
+    slider(store, { label: 'Height', path: 'shape.tileH', min: 90, max: 1080, step: 5, fmt: px, show: (s) => isTile(s) && !s.shape.tileLock }),
+    toggle(store, { label: 'Khóa tỉ lệ Width = Height', path: 'shape.tileLock', show: isTile }),
     segmented(store, {
       label: 'Quy tắc xoay / lật',
       path: 'shape.rule',
@@ -239,11 +262,10 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       compact: true,
       show: isTile,
     }),
-    slider(store, { label: 'Khoảng cách lưới', path: 'shape.tileGap', min: -0.6, max: 0.4, step: 0.005, fmt: (v) => (v > 0 ? '+' : '') + pct(v), hint: 'Âm = shape lớn hơn ô, chồng khít vào nhau', show: isTile }),
-    slider(store, { label: 'Lệch hàng (brick)', path: 'shape.brick', min: 0, max: 0.5, step: 0.25, fmt: pct, show: isTile }),
+    slider(store, { label: 'Khoảng cách lưới', path: 'shape.tileGap', min: -0.6, max: 0.4, step: 0.005, fmt: signed, hint: 'Âm = shape lớn hơn ô, chồng khít vào nhau', show: isTile }),
     toggle(store, { label: 'Đảo sáng / tối', path: 'shape.invert', hint: 'Đổi màu hình và nền', show: isTile }),
     toggle(store, { label: 'Nhiều màu cho hình', path: 'shape.multi', hint: 'Mỗi shape lấy 1 màu trong bảng màu', show: isTile }),
-    // shape — loose grid
+    // shape — Thin → Black grid
     slider(store, { label: 'Số cột', path: 'shape.cols', min: 1, max: 14, step: 1, show: isLoose }),
     slider(store, { label: 'Số hàng', path: 'shape.rows', min: 1, max: 14, step: 1, show: isLoose }),
     slider(store, { label: 'Khoảng cách lưới', path: 'shape.gap', min: 0, max: 0.6, step: 0.01, fmt: pct, show: isLoose }),
@@ -251,28 +273,22 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
     // text
     slider(store, { label: 'Số dòng chữ', path: 'text.rows', min: 1, max: 20, step: 1, show: isText }),
     slider(store, { label: 'Lặp ngang mỗi dòng', path: 'text.repeat', min: 1, max: 6, step: 1, fmt: times, show: isText }),
-    slider(store, { label: 'Khoảng cách dòng', path: 'text.gap', min: 0, max: 0.6, step: 0.01, fmt: pct, show: isText }),
+    slider(store, { label: 'Khoảng cách dòng', path: 'text.gap', min: -0.2, max: 0.6, step: 0.01, fmt: signed, show: isText }),
     slider(store, { label: 'Lề khung', path: 'text.margin', min: 0, max: 0.2, step: 0.005, fmt: pct, show: isText }),
-    // wide → narrow
-    slider(store, { label: 'Số cột', path: 'wide.cols', min: 2, max: 24, step: 1, show: isWide }),
-    slider(store, { label: 'Số hàng', path: 'wide.rows', min: 1, max: 10, step: 1, show: isWide }),
-    slider(store, { label: 'Khoảng cách lưới', path: 'wide.gap', min: 0, max: 0.4, step: 0.005, fmt: pct, show: isWide }),
-    slider(store, { label: 'Lề khung', path: 'wide.margin', min: 0, max: 0.2, step: 0.005, fmt: pct, show: isWide }),
   );
 
   const weight = sec(
-    '06',
+    '08',
     'Trọng lượng nét',
-    'Thin → Black · chữ',
-    weightRange(store, { show: (s) => !isTile(s) }),
-    toggle(store, { label: 'Đảo chiều', path: 'weight.invert', hint: 'Black → Thin', show: (s) => !isTile(s) }),
-    toggle(store, { label: 'Gắn nét với độ rộng', path: 'wide.linkWeight', hint: 'Cột hẹp mảnh, cột rộng đậm', show: isWide }),
+    'Thin → Black',
+    weightRange(store, { show: isMorph }),
+    toggle(store, { label: 'Đảo chiều', path: 'weight.invert', hint: 'Black → Thin', show: isMorph }),
   );
 
   const variants = sec(
-    '07',
+    '09',
     'Biến thể',
-    'Theo từng pattern',
+    'Thin → Black',
     segmented(store, {
       label: 'Cách xếp asset',
       path: 'shape.arrange',
@@ -282,14 +298,22 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       ],
       show: isLoose,
     }),
-    slider(store, { label: 'Số lớp chữ màu', path: 'text.echo', min: 0, max: 4, step: 1, show: isText, hint: 'Lớp sau (đỏ, vàng…) nằm sau lớp trước, mỗi lớp lấy 1 màu trong bảng màu' }),
-    slider(store, { label: 'Biên độ lớp chữ', path: 'text.spread', min: 0, max: 1, step: 0.01, fmt: pct, show: isText, hint: 'Các lớp sau trượt trái ↔ phải bao xa (theo % 1 ô chữ)' }),
-    slider(store, { label: 'Quãng dịch chuyển', path: 'text.shift', min: 0, max: 3, step: 0.25, fmt: (v) => `${v} ô`, show: isText, hint: 'Số lần lặp chữ mà mỗi dòng trượt qua' }),
-    slider(store, { label: 'Tỉ lệ hẹp : rộng', path: 'wide.ratio', min: 1, max: 14, step: 0.5, fmt: (v) => `1 : ${v}`, show: isWide }),
-    toggle(store, { label: 'Nền đặc cho từng ô', path: 'wide.block', hint: 'Chữ khoét trên khối màu', show: isWide }),
+    segmented(store, {
+      label: 'Chiều dịch chữ',
+      path: 'text.slide',
+      options: [
+        { value: 'alternate', label: 'Xen kẽ' },
+        { value: 'same', label: 'Cùng chiều' },
+        { value: 'none', label: 'Đứng yên' },
+      ],
+      show: isTextMorph,
+    }),
+    slider(store, { label: 'Quãng dịch chuyển', path: 'text.shift', min: 0, max: 3, step: 0.25, fmt: (v) => `${v} ô`, show: isTextMorph, hint: 'Số lần lặp chữ mà mỗi dòng trượt qua' }),
+    slider(store, { label: 'Số lớp chữ màu', path: 'text.echo', min: 0, max: 4, step: 1, show: isTextMorph, hint: 'Lớp sau (đỏ, vàng…) nằm sau lớp trước, mỗi lớp lấy 1 màu trong bảng màu' }),
+    slider(store, { label: 'Biên độ lớp chữ', path: 'text.spread', min: 0, max: 1, step: 0.01, fmt: pct, show: isTextMorph, hint: 'Các lớp sau trượt trái ↔ phải bao xa (theo % 1 ô chữ)' }),
   );
 
-  const left = [content, colors];
-  const right = [rhythm, loop, grid, weight, variants];
+  const left = [content, type, colors];
+  const right = [mode, rhythm, loop, grid, weight, variants];
   return { left, right };
 }

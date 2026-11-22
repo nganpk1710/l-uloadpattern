@@ -15,6 +15,8 @@ export interface ShapeOpts {
 export interface TextOpts {
   /** 100 (Thin) … 900 (Black) */
   weight: number;
+  /** letter spacing in em (of the 100px text size) */
+  tracking?: number;
   fill: string;
   alpha?: number;
 }
