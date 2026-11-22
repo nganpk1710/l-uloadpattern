@@ -678,3 +678,41 @@
   display: block;
   fill: #fdfdfd;
 }
+
+/* ───────── section tools (reset / collapse) ───────── */
+.sec__tools {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 6px;
+  align-self: center;
+}
+.sec__tool {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font: 500 14px var(--font-ui);
+  cursor: pointer;
+}
+.sec__tool:hover {
+  color: var(--paper);
+  border-color: var(--line-strong);
+}
+.sec__chev::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s;
+}
+.sec--collapsed .sec__chev::before {
+  transform: translateY(1px) rotate(-45deg);
+}
+.sec--collapsed .sec__head {
+  margin-bottom: 4px;
+}

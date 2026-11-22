@@ -2,6 +2,7 @@ import type { ShapeAsset } from '../core/assets';
 import { luminance } from '../core/color';
 import { compose, frac, rotate, scale, translate } from '../core/math';
 import { FRAME } from '../core/painter';
+import { fieldValue, quantise } from '../core/field';
 import { hash01 } from '../core/rng';
 import type { ScrollDir, TileRule } from '../core/state';
 import { progress, waveOffset } from '../core/timeline';
@@ -161,17 +162,31 @@ export function renderTileLoop({ painter, state, t, assets }: RenderContext) {
         else spin = e * (Math.PI / 2) * ((vi + vj) % 2 ? -1 : 1);
       }
 
+      // Generator: sample the field at this cell's centre and let it drive size / rotation / offset
+      let fSize = 1;
+      let fx = 0;
+      let fy = 0;
+      if (s.gen.type !== 'off') {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const fv = quantise(fieldValue(s.gen.type, cx / FRAME, cy / FRAME, t, s.gen.scale, Math.round(s.gen.speed), state.color.seed), s.gen.levels);
+        const a = s.gen.amount;
+        if (s.gen.target === 'size') fSize = 1 - a * (1 - fv);
+        else if (s.gen.target === 'turn') spin += fv * a * Math.PI;
+        else fx = (fv - 0.5) * a * w * 1.2;
+      }
+
       const asset: ShapeAsset = pickAsset(state, assets, mod(vi, R), mod(vj, R));
       const b = asset.bbox;
       const fullTile = asset.twoTone;
       const sc = s.size / Math.max(b.w, b.h);
       const m = compose(
-        translate(x + w / 2, y + h / 2),
+        translate(x + w / 2 + fx, y + h / 2 + fy),
         rotate(spin),
         scale(flip, 1),
         rotate((o.quarter * Math.PI) / 2),
         scale(o.fx ? -1 : 1, o.fy ? -1 : 1),
-        fullTile ? scale((w / b.w) * OVERSCAN, (h / b.h) * OVERSCAN) : scale(sc),
+        fullTile ? scale((w / b.w) * OVERSCAN * fSize, (h / b.h) * OVERSCAN * fSize) : scale(sc * fSize),
         translate(-(b.x + b.w / 2), -(b.y + b.h / 2)),
       );
 

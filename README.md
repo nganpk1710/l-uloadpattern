@@ -91,3 +91,12 @@ Static site, chạy được trên Vercel / Netlify / GitHub Pages (`base: './'`
 - **Text:** chiều chạy ngang trái/phải hoặc dọc lên/xuống, xen kẽ ngược chiều.
 - **Type** (chỉ cho Text): dòng chữ, viết hoa, trọng lượng cố định cho Loop, giãn chữ, khoảng cách giữa các chữ lặp.
 - Asset nguyên tile có nền riêng (ví dụ `pattern-01.svg`) phủ kín ô, không gap.
+
+## Generator (Shape · Loop)
+
+Một trường giá trị chuyển động (Nhiễu, Vòng tròn, Sóng, Sọc dọc/ngang, Tia, Dải chéo, Cờ vua) được lấy mẫu tại tâm mỗi ô để điều khiển **kích thước**, **góc xoay** hoặc **độ lệch ngang** của shape. Scale = số lần trường lặp trên khung, Detail chia trường thành các bậc (kiểu pixel), Tốc độ = số vòng nguyên mỗi loop nên luôn khớp đầu–cuối. Code ở `src/core/field.ts`: thêm generator mới chỉ cần một case trả về giá trị 0‥1 tuần hoàn theo `t`.
+
+## Công cụ làm việc
+
+- **Hoàn tác / Làm lại:** nút ↶ ↷ trên đầu trang, hoặc `Ctrl/⌘ + Z`, `Ctrl/⌘ + Shift + Z`. Kéo một slider liên tục chỉ tính là một bước.
+- **Mỗi mục** có nút ↺ đặt lại riêng (danh sách thuộc tính ở `withTools(...)` trong `src/ui/panels.ts`) và nút thu gọn.

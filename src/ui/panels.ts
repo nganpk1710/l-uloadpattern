@@ -26,6 +26,21 @@ const sec = (index: string, title: string, sub: string, ...ctls: Ctl[]) => {
   return { el, ctls };
 };
 
+/** Adds the per-section tools: reset to defaults, collapse. */
+function withTools(section: { el: HTMLElement; ctls: Ctl[] }, store: Store, paths: string[]) {
+  const head = section.el.querySelector('.sec__head')!;
+  const body = section.el.querySelector('.sec__body') as HTMLElement;
+  const reset = h('button', { type: 'button', class: 'sec__tool', title: 'Đặt lại mục này', 'aria-label': 'Đặt lại mục này', onclick: () => store.resetPaths(paths) }, '↺');
+  const chev = h('button', { type: 'button', class: 'sec__tool sec__chev', title: 'Thu gọn / mở rộng', 'aria-label': 'Thu gọn hoặc mở rộng mục', 'aria-expanded': 'true' });
+  chev.addEventListener('click', () => {
+    const collapsed = section.el.classList.toggle('sec--collapsed');
+    chev.setAttribute('aria-expanded', String(!collapsed));
+    body.hidden = collapsed;
+  });
+  head.append(h('span', { class: 'sec__tools' }, paths.length ? reset : null, chev));
+  return section;
+}
+
 const sec_s = (v: number) => `${v.toFixed(1)}s`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const times = (v: number) => `${v}×`;
@@ -337,7 +352,58 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
     slider(store, { label: 'Biên độ lớp chữ', path: 'text.spread', min: 0, max: 1, step: 0.01, fmt: pct, show: isTextMorph, hint: 'Các lớp sau trượt trái ↔ phải bao xa (theo % 1 ô chữ)' }),
   );
 
-  const left = [content, type, colors];
-  const right = [mode, rhythm, loop, grid, weight, variants];
+  const generator = sec(
+    '07',
+    'Generator',
+    'Trường điều khiển từng ô',
+    segmented(store, {
+      label: 'Generator',
+      path: 'shape.gen.type',
+      options: [
+        { value: 'off', label: 'Tắt' },
+        { value: 'noise', label: 'Nhiễu' },
+        { value: 'rings', label: 'Vòng tròn' },
+        { value: 'waves', label: 'Sóng' },
+        { value: 'barsX', label: 'Sọc dọc' },
+        { value: 'barsY', label: 'Sọc ngang' },
+        { value: 'radial', label: 'Tia' },
+        { value: 'gradient', label: 'Dải chéo' },
+        { value: 'checker', label: 'Cờ vua' },
+      ],
+      compact: true,
+      hint: 'Một trường giá trị chuyển động, lấy mẫu tại tâm mỗi ô để điều khiển shape. Luôn loop liền mạch.',
+      show: isTile,
+    }),
+    segmented(store, {
+      label: 'Điều khiển',
+      path: 'shape.gen.target',
+      options: [
+        { value: 'size', label: 'Kích thước' },
+        { value: 'turn', label: 'Góc xoay' },
+        { value: 'shift', label: 'Lệch ngang' },
+      ],
+      compact: true,
+      show: (s) => isTile(s) && s.shape.gen.type !== 'off',
+    }),
+    slider(store, { label: 'Cường độ', path: 'shape.gen.amount', min: 0, max: 1, step: 0.01, fmt: pct, show: (s) => isTile(s) && s.shape.gen.type !== 'off' }),
+    slider(store, { label: 'Scale', path: 'shape.gen.scale', min: 0.5, max: 8, step: 0.5, fmt: (v) => `${v}×`, hint: 'Số lần trường lặp lại trên khung', show: (s) => isTile(s) && s.shape.gen.type !== 'off' }),
+    slider(store, { label: 'Detail', path: 'shape.gen.levels', min: 0, max: 12, step: 1, fmt: (v) => (v < 2 ? 'Mượt' : `${v} bậc`), hint: 'Chia trường thành các bậc, ra kiểu pixel', show: (s) => isTile(s) && s.shape.gen.type !== 'off' }),
+    slider(store, { label: 'Tốc độ trường', path: 'shape.gen.speed', min: -4, max: 4, step: 1, fmt: (v) => (v === 0 ? 'Đứng' : `${v > 0 ? '' : '−'}${Math.abs(v)} vòng/loop`), hint: 'Số vòng nguyên mỗi loop nên luôn khớp đầu–cuối', show: (s) => isTile(s) && s.shape.gen.type !== 'off' }),
+  );
+
+  const left = [
+    withTools(content, store, []),
+    withTools(type, store, ['text.content', 'text.upper', 'text.weight', 'text.tracking', 'text.wordGap']),
+    withTools(colors, store, ['color.bg', 'color.fg', 'color.mode']),
+  ];
+  const right = [
+    mode,
+    withTools(rhythm, store, ['rhythm']),
+    withTools(loop, store, ['shape.tileMotion', 'shape.dir', 'shape.laps', 'shape.lineDir', 'shape.lineSpeed', 'text.dir', 'text.alt', 'text.laps', 'text.lineDir', 'text.lineSpeed']),
+    withTools(grid, store, ['shape.tileType', 'shape.tileW', 'shape.tileH', 'shape.tileLock', 'shape.brickOffset', 'shape.rule', 'shape.patW', 'shape.patH', 'shape.cells', 'shape.size', 'shape.invert', 'shape.multi', 'shape.cols', 'shape.rows', 'shape.gap', 'shape.margin', 'text.rows', 'text.repeat', 'text.gap', 'text.margin']),
+    withTools(generator, store, ['shape.gen']),
+    withTools(weight, store, ['weight']),
+    withTools(variants, store, ['shape.arrange', 'text.slide', 'text.shift', 'text.echo', 'text.spread']),
+  ];
   return { left, right };
 }

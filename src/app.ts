@@ -18,6 +18,8 @@ export async function startApp(root: HTMLElement) {
   const stage = buildStage(store, lib);
   const panels = buildPanels(store, lib);
 
+  const undoBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', title: 'Hoàn tác (Ctrl/⌘ + Z)', 'aria-label': 'Hoàn tác', onclick: () => store.undo() }, '↶');
+  const redoBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', title: 'Làm lại (Ctrl/⌘ + Shift + Z)', 'aria-label': 'Làm lại', onclick: () => store.redo() }, '↷');
   const resetBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: () => store.reset() }, 'Đặt lại');
 
   const header = h(
@@ -34,6 +36,8 @@ export async function startApp(root: HTMLElement) {
       'div',
       { class: 'top__right' },
       h('span', { class: 'top__keys' }, h('kbd', {}, 'Space'), ' phát/dừng  ', h('kbd', {}, '1'), h('kbd', {}, '2'), ' đổi pattern  ', h('kbd', {}, 'R'), ' ngẫu nhiên'),
+      undoBtn,
+      redoBtn,
       resetBtn,
     ),
     h('span', { class: 'top__load', 'aria-hidden': 'true' }),
@@ -55,6 +59,8 @@ export async function startApp(root: HTMLElement) {
       sec.el.hidden = sec.ctls.every((c) => c.el.hidden);
       if (!sec.el.hidden) sec.el.querySelector('.sec__index')!.textContent = String(++n).padStart(2, '0');
     }
+    undoBtn.disabled = !store.canUndo;
+    redoBtn.disabled = !store.canRedo;
     stage.sync(s);
   };
   store.subscribe(sync);
@@ -63,6 +69,19 @@ export async function startApp(root: HTMLElement) {
   // keyboard shortcuts (ignored while typing)
   window.addEventListener('keydown', (e) => {
     const t = e.target as HTMLElement;
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !t.closest('input[type="text"], textarea, select')) {
+      if (e.code === 'KeyZ') {
+        e.preventDefault();
+        if (e.shiftKey) store.redo();
+        else store.undo();
+        return;
+      }
+      if (e.code === 'KeyY') {
+        e.preventDefault();
+        store.redo();
+        return;
+      }
+    }
     if (t.closest('input[type="text"], textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.code === 'Space' && !(t instanceof HTMLButtonElement)) {
       e.preventDefault();

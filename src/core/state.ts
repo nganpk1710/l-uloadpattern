@@ -8,6 +8,8 @@ export type ShapeMotion = 'weight' | 'rotate' | 'flip' | 'scale';
 /** tile = Loop (repeated background) · loose = Thin → Black grid */
 export type ShapeLayout = 'tile' | 'loose';
 export type TileType = 'grid' | 'brickRow' | 'brickCol' | 'hexCol' | 'hexRow';
+export type GenType = 'off' | 'noise' | 'rings' | 'waves' | 'barsX' | 'barsY' | 'radial' | 'gradient' | 'checker';
+export type GenTarget = 'size' | 'turn' | 'shift';
 export type TextMode = 'weight' | 'loop';
 export type TextDir = 'l' | 'r' | 'u' | 'd';
 export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'turns' | 'random' | 'custom';
@@ -61,6 +63,19 @@ export interface State {
     laps: number;
     /** colour each shape from the whole palette instead of the first colour only */
     multi: boolean;
+    /** Generator: a moving field (0‥1) sampled at every cell that drives size, rotation or offset */
+    gen: {
+      type: GenType;
+      target: GenTarget;
+      /** how strongly the field acts, 0‥1 */
+      amount: number;
+      /** cycles of the field across the frame */
+      scale: number;
+      /** quantise the field into this many steps (0 = smooth) — the pixel-art look */
+      levels: number;
+      /** whole field cycles per loop (negative = reverse) so the loop stays seamless */
+      speed: number;
+    };
     cols: number;
     rows: number;
     gap: number;
@@ -141,6 +156,7 @@ export const DEFAULT_STATE: State = {
     cols: 5,
     rows: 5,
     gap: 0.12,
+    gen: { type: 'off', target: 'size', amount: 0.7, scale: 2, levels: 0, speed: 1 },
     size: 380,
     patW: 3,
     patH: 3,
@@ -215,6 +231,9 @@ export class Store {
   state: State;
   private listeners = new Set<Listener>();
   private saveTimer = 0;
+  private past: string[] = [];
+  private future: string[] = [];
+  private burst = 0;
 
   constructor() {
     let saved: unknown = null;
@@ -232,18 +251,67 @@ export class Store {
     return () => this.listeners.delete(fn);
   }
 
+  get canUndo(): boolean {
+    return this.past.length > 0;
+  }
+  get canRedo(): boolean {
+    return this.future.length > 0;
+  }
+
+  /** Remember the state before a change. Rapid changes (a slider drag) collapse into one undo step. */
+  private record(): void {
+    if (!this.burst) {
+      this.past.push(JSON.stringify(this.state));
+      if (this.past.length > 100) this.past.shift();
+      this.future.length = 0;
+    }
+    window.clearTimeout(this.burst);
+    this.burst = window.setTimeout(() => (this.burst = 0), 450);
+  }
+
+  private restore(json: string): void {
+    this.state = mergeKnown(structuredClone(DEFAULT_STATE), JSON.parse(json));
+    window.clearTimeout(this.burst);
+    this.burst = 0;
+    this.emit();
+  }
+
+  undo(): void {
+    const prev = this.past.pop();
+    if (prev == null) return;
+    this.future.push(JSON.stringify(this.state));
+    this.restore(prev);
+  }
+
+  redo(): void {
+    const next = this.future.pop();
+    if (next == null) return;
+    this.past.push(JSON.stringify(this.state));
+    this.restore(next);
+  }
+
+  /** Put the given state paths back to their defaults (used by the per-section reset). */
+  resetPaths(paths: string[]): void {
+    this.patch((s) => {
+      for (const p of paths) setPath(s, p, structuredClone(getPath(DEFAULT_STATE, p)));
+    });
+  }
+
   set(path: string, value: unknown): void {
+    this.record();
     setPath(this.state, path, value);
     this.emit();
   }
 
   /** Mutate several things then notify once. */
   patch(fn: (s: State) => void): void {
+    this.record();
     fn(this.state);
     this.emit();
   }
 
   reset(): void {
+    this.record();
     const keepExport = this.state.export;
     this.state = structuredClone(DEFAULT_STATE);
     this.state.export = keepExport;
