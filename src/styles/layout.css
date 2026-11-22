@@ -1,0 +1,410 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ───────── header ───────── */
+.top {
+  position: relative;
+  flex: none;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+.top__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.top__logo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--lemon);
+}
+.top__rule {
+  width: 1px;
+  height: 22px;
+  background: var(--line-strong);
+}
+.top__title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.top__right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.top__keys {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* the brand "load" bar — fills in sync with the loop */
+.top__load {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--lemon);
+  transform-origin: left;
+  transform: scaleX(var(--load));
+}
+
+/* ───────── three-column workspace ───────── */
+.layout {
+  flex: 1;
+  min-height: 0;
+  height: calc(100dvh - var(--header-h));
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr) 330px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(253, 253, 253, 0.25) transparent;
+}
+.panel--left {
+  border-right: 1px solid var(--line);
+}
+.panel--right {
+  border-left: 1px solid var(--line);
+}
+
+.stage {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 26px 16px;
+  gap: 12px;
+}
+.stage__sticky {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ───────── tabs ───────── */
+.tabs {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 30px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 9px;
+  align-items: baseline;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--paper);
+  opacity: 0.5;
+  font-family: var(--font-display);
+  font-weight: 200;
+  font-size: 40px;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* variable font: the weight itself animates thin → black */
+  transition: font-weight 0.5s var(--ease), opacity 0.3s, color 0.3s;
+}
+.tab:hover {
+  opacity: 0.9;
+  font-weight: 500;
+}
+.tab[aria-selected='true'] {
+  opacity: 1;
+  color: var(--lemon);
+  font-weight: 900;
+}
+.tab__index {
+  font: 500 11px var(--font-ui);
+  letter-spacing: 0.08em;
+  transform: translateY(-14px);
+}
+.tab__name {
+  grid-column: 2;
+}
+.tab__sub {
+  grid-column: 2;
+  font: 400 11px var(--font-ui);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--paper);
+  opacity: 0.6;
+  margin-top: 5px;
+}
+
+/* ───────── preview frame ───────── */
+.stage__view {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+  display: grid;
+  place-items: center;
+}
+.frame-holder {
+  width: min(100cqw, calc(100cqh - 26px));
+  display: grid;
+  gap: 8px;
+}
+.frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #1b1b1b;
+}
+.frame__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* registration marks around the frame */
+.frame::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+  opacity: 0.55;
+  --m: linear-gradient(var(--paper), var(--paper));
+  background:
+    var(--m) top left / 11px 1px no-repeat, var(--m) top left / 1px 11px no-repeat,
+    var(--m) top right / 11px 1px no-repeat, var(--m) top right / 1px 11px no-repeat,
+    var(--m) bottom left / 11px 1px no-repeat, var(--m) bottom left / 1px 11px no-repeat,
+    var(--m) bottom right / 11px 1px no-repeat, var(--m) bottom right / 1px 11px no-repeat;
+}
+.frame__meta {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* ───────── transport ───────── */
+.transport {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.transport .rng {
+  flex: 1;
+}
+.play {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--lemon);
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease);
+}
+.play:hover {
+  transform: scale(1.06);
+}
+.time {
+  flex: none;
+  min-width: 8.2em;
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────── export dock ───────── */
+.dock {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.dock__left {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.dock__formats,
+.dock__opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dock__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+.dock__action {
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+}
+.dock__info {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.3;
+  max-width: 16em;
+}
+.dock__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* ───────── tablet & mobile: preview stays pinned while you tweak ───────── */
+@media (max-width: 1180px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .top__keys {
+    display: none;
+  }
+  .layout {
+    display: grid;
+    height: auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: none;
+    align-items: start;
+  }
+  .layout > * {
+    min-width: 0;
+  }
+  .stage {
+    display: contents;
+  }
+  .stage__sticky {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    grid-column: 1 / -1;
+    background: var(--ink);
+    padding: 12px 20px 12px;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+  .stage__view {
+    flex: none;
+    height: min(46dvh, calc(100vw - 40px));
+  }
+  .tabs {
+    padding-bottom: 8px;
+    gap: 20px;
+  }
+  .tab {
+    font-size: 28px;
+  }
+  .tab__sub {
+    display: none;
+  }
+  .panel {
+    overflow: visible;
+  }
+  .panel--left {
+    order: 1;
+    border-right: 1px solid var(--line);
+  }
+  .panel--right {
+    order: 2;
+  }
+  .dock {
+    order: 3;
+    grid-column: 1 / -1;
+    padding: 18px 20px 40px;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 720px) {
+  .top {
+    padding: 0 14px;
+  }
+  .top__title,
+  .top__rule {
+    display: none;
+  }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stage__sticky {
+    padding: 10px 14px;
+  }
+  .stage__view {
+    height: min(40dvh, calc(100vw - 28px));
+  }
+  .panel--left,
+  .panel--right {
+    border: 0;
+    order: initial;
+  }
+  .panel--left {
+    order: 1;
+  }
+  .panel--right {
+    order: 2;
+  }
+  .dock {
+    padding: 18px 14px 40px;
+  }
+  .dock {
+    grid-template-columns: 1fr;
+  }
+  .dock__action {
+    justify-items: stretch;
+  }
+  .dock__buttons .btn--primary {
+    flex: 1;
+  }
+  .dock__info {
+    text-align: left;
+    max-width: none;
+  }
+  .dock__formats,
+  .dock__opt {
+    flex-wrap: wrap;
+  }
+  .time {
+    min-width: 6.4em;
+    font-size: 18px;
+  }
+}

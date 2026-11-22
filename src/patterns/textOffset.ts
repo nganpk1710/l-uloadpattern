@@ -1,0 +1,62 @@
+import { capHeight, measure } from '../core/fonts';
+import { clamp, compose, scale, translate } from '../core/math';
+import { FRAME } from '../core/painter';
+import { progress, waveOffset, weightAt } from '../core/timeline';
+import { pickColor, type RenderContext } from './types';
+
+const ECHO_LAG = 0.035;
+
+/**
+ * 02 · Text Transform Offset — stacked, ultra-tall lines of type. Every line slides sideways by whole
+ * tiles (so the loop is seamless at any weight), swells from Thin to Black, and leaves coloured echoes behind.
+ */
+export function renderTextOffset({ painter, state, t }: RenderContext) {
+  const s = state.text;
+  const text = (s.content || ' ').toUpperCase();
+  const m = FRAME * s.margin;
+  const area = FRAME - m * 2;
+  const rowH = area / s.rows;
+  const glyphH = rowH * (1 - s.gap);
+  const cap = capHeight();
+  const sy = glyphH / cap;
+  const tileW = area / s.repeat;
+  const wholeShift = state.rhythm.loop === 'load' ? Math.round(s.shift) : s.shift;
+
+  painter.pushClip(m, m, area, area);
+
+  for (let r = 0; r < s.rows; r++) {
+    const off = waveOffset(state.rhythm.wave, 0, r, 1, s.rows, state.color.seed);
+    const baseline = m + r * rowH + (rowH - glyphH) / 2 + glyphH;
+    const dir = s.slide === 'same' ? 1 : r % 2 ? 1 : -1;
+    const main = pickColor(state, 0, r);
+
+    // furthest echo first so the main line sits on top
+    for (let k = s.echo; k >= 0; k--) {
+      const e = progress(state, t, off, k * ECHO_LAG);
+      const w = weightAt(state, e);
+      const met = measure(text, w);
+      const unit = met.adv + cap * 0.45; // text + breathing gap = one tile
+      const sx = tileW / unit;
+
+      const colors = state.color.fg;
+      const fill = k === 0 ? main : colors.length > 1 ? pickColor(state, k, r) : main;
+      const alpha = k === 0 ? 1 : colors.length > 1 ? 1 : 0.28 / k + 0.12;
+
+      const slide = s.slide === 'none' ? 0 : dir * clamp(e, -0.1, 1.1) * wholeShift * tileW;
+      // draw enough tiles to cover the window while sliding
+      const first = -2;
+      const last = s.repeat + 2;
+      for (let n = first; n <= last; n++) {
+        const x = m + slide + n * tileW;
+        if (x > m + area || x + tileW < m) continue;
+        painter.text(text, compose(translate(x, baseline), scale(sx, sy)), {
+          weight: w,
+          fill,
+          alpha,
+        });
+      }
+    }
+  }
+
+  painter.popClip();
+}

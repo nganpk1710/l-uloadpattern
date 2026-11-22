@@ -1,0 +1,23 @@
+:root {
+  /* brand palette */
+  --paper: #fdfdfd;
+  --ink: #111111;
+  --cobalt: #0800b2;
+  --lemon: #fff11c;
+  --brick: #ba2016;
+  --mint: #4bffdf;
+  --orange: #ff6932;
+  --lime: #24fc7d;
+
+  /* ui chrome */
+  --line: rgba(253, 253, 253, 0.13);
+  --line-strong: rgba(253, 253, 253, 0.34);
+  --muted: rgba(253, 253, 253, 0.55);
+
+  --font-display: 'Big Shoulders', 'Arial Narrow', Impact, sans-serif;
+  --font-ui: 'Aeonik', 'Helvetica Neue', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+
+  --ease: cubic-bezier(0.65, 0, 0.35, 1);
+  --header-h: 56px;
+  --load: 0;
+}

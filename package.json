@@ -1,0 +1,23 @@
+{
+  "name": "luu-load-pattern-toolkit",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lưu Load — Motion Pattern Toolkit",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  },
+  "dependencies": {
+    "gifenc": "^1.0.3",
+    "mp4-muxer": "^5.2.2",
+    "opentype.js": "^2.0.0",
+    "webm-muxer": "^5.1.4"
+  }
+}
