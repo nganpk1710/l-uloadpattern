@@ -82,3 +82,11 @@ Pattern chỉ gọi `painter.shape / text / rect`, nên cùng một code ra prev
 ## Deploy
 
 Static site, chạy được trên Vercel / Netlify / GitHub Pages (`base: './'`). Vercel: import repo, framework Vite, build `npm run build`, output `dist`.
+
+## Tile liền khít (Shape Loop)
+
+- Mỗi asset là **một tile 1080 duy nhất** (ví dụ `pattern-01.svg`). Tile phủ kín ô, không gap, không lề; các ô được **xoay 90° / lật** theo quy tắc: Giữ nguyên, Đối xứng, Cờ vua, Chong chóng, Xoay vòng, Ngẫu nhiên.
+- Lưới nhanh 1×1 · 2×2 · 3×3 · 4×4 · 6×6 · 8×8; nút **Đảo sáng / tối** đổi màu hình và nền (màu lấy từ bộ màu thương hiệu).
+- Chuyển động: **Loop trượt** (8 hướng, vòng lặp liền mạch theo chu kỳ quy tắc), Đưa qua lại, Lật, Xoay, Đứng yên. Easing / độ lan sóng điều khiển nhịp.
+- "Lưới rời" vẫn giữ chế độ cũ (có gap/lề).
+- **Nét Thin → Black chỉ áp dụng cho chữ** (pattern Text Offset): chữ nguyên vẹn, không đóng khung trong shape. "Số lớp chữ màu" + "Biên độ lớp chữ" điều khiển các lớp chữ đỏ/vàng phía sau trượt trái ↔ phải.

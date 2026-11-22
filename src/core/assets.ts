@@ -30,6 +30,7 @@ const rawShapes = import.meta.glob('../assets/shapes/*.svg', {
 }) as Record<string, string>;
 
 const LABELS: Record<string, string> = {
+  'pattern-01': 'Pattern LƯU LOAD 01',
   frame: 'Khung vòm',
   loa: 'Loa',
   chatbox: 'Hộp thoại',
@@ -39,7 +40,7 @@ const LABELS: Record<string, string> = {
   line: 'Đường nét',
   text: 'Chữ LOAD',
 };
-const ORDER = ['frame', 'loa', 'chatbox', 'chatbox-mirror', 'arrow-bold', 'arrow-space', 'line', 'text'];
+const ORDER = ['pattern-01', 'frame', 'loa', 'chatbox', 'chatbox-mirror', 'arrow-bold', 'arrow-space', 'line', 'text'];
 
 const SKIP_TAGS = new Set(['defs', 'clippath', 'mask', 'symbol', 'style', 'title', 'desc', 'metadata', 'image', 'text', 'use', 'pattern', 'lineargradient', 'radialgradient', 'filter']);
 

@@ -1,13 +1,16 @@
 import { compose, lerp, rotate, scale, translate } from '../core/math';
 import { FRAME } from '../core/painter';
 import { insetFor, progress, waveOffset, weightAt, weightUnit } from '../core/timeline';
+import { renderTileLoop } from './tileLoop';
 import { pickAsset, pickColor, type RenderContext } from './types';
 
 /**
  * 01 · Shape Loop — a grid of solid geometric shapes. Each cell breathes from a hairline
  * outline (Thin) to a fully filled form (Black), rippling across the grid.
  */
-export function renderShapeLoop({ painter, state, t, assets }: RenderContext) {
+export function renderShapeLoop(rc: RenderContext) {
+  if (rc.state.shape.layout === 'tile') return renderTileLoop(rc);
+  const { painter, state, t, assets } = rc;
   const s = state.shape;
   const m = FRAME * s.margin;
   const area = FRAME - m * 2;

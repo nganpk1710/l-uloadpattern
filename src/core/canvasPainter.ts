@@ -46,7 +46,7 @@ export class CanvasPainter implements Painter {
     ctx.transform(...m);
     ctx.globalAlpha = o.alpha ?? 1;
     for (const sp of asset.paths) {
-      const color = o.fill ?? sp.fill ?? '#111111';
+      const color = typeof o.fill === 'function' ? o.fill(sp.fill) : (o.fill ?? sp.fill ?? '#111111');
       const path = getPath(sp);
       const rule = sp.evenodd ? 'evenodd' : 'nonzero';
       ctx.save();

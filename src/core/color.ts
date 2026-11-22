@@ -38,7 +38,7 @@ export interface ColorPreset {
 }
 
 export const COLOR_PRESETS: ColorPreset[] = [
-  { id: 'cobalt-pop', name: 'Cobalt Pop', bg: '#0800b2', fg: ['#fff11c', '#fdfdfd'] },
+  { id: 'cobalt-pop', name: 'Cobalt Pop', bg: '#0800b2', fg: ['#fdfdfd', '#fff11c', '#ba2016'] },
   { id: 'paper-ink', name: 'Paper Ink', bg: '#fdfdfd', fg: ['#111111', '#0800b2'] },
   { id: 'lemon', name: 'Lemon', bg: '#fff11c', fg: ['#111111', '#0800b2'] },
   { id: 'brick', name: 'Brick', bg: '#fdfdfd', fg: ['#ba2016', '#111111'] },

@@ -28,7 +28,7 @@ export function renderTextOffset({ painter, state, t }: RenderContext) {
     const off = waveOffset(state.rhythm.wave, 0, r, 1, s.rows, state.color.seed);
     const baseline = m + r * rowH + (rowH - glyphH) / 2 + glyphH;
     const dir = s.slide === 'same' ? 1 : r % 2 ? 1 : -1;
-    const main = pickColor(state, 0, r);
+    const base = state.color.mode === 'cycle' ? 0 : Math.max(0, state.color.fg.indexOf(pickColor(state, 0, r)));
 
     // furthest echo first so the main line sits on top
     for (let k = s.echo; k >= 0; k--) {
@@ -39,10 +39,13 @@ export function renderTextOffset({ painter, state, t }: RenderContext) {
       const sx = tileW / unit;
 
       const colors = state.color.fg;
-      const fill = k === 0 ? main : colors.length > 1 ? pickColor(state, k, r) : main;
-      const alpha = k === 0 ? 1 : colors.length > 1 ? 1 : 0.28 / k + 0.12;
+      // layer k takes the next colour in the palette, so the back layers (e.g. red, yellow) sit behind the front one
+      const fill = colors[(base + k) % colors.length];
+      const alpha = k === 0 || colors.length > 1 ? 1 : 0.28 / k + 0.12;
 
-      const slide = s.slide === 'none' ? 0 : dir * clamp(e, -0.1, 1.1) * wholeShift * tileW;
+      // back layers swing left ↔ right (alternating direction), the front layer stays put
+      const swing = k === 0 ? 0 : (2 * clamp(e, 0, 1) - 1) * s.spread * tileW * (k % 2 ? 1 : -1);
+      const slide = swing + (s.slide === 'none' ? 0 : dir * clamp(e, -0.1, 1.1) * wholeShift * tileW);
       // draw enough tiles to cover the window while sliding
       const first = -2;
       const last = s.repeat + 2;

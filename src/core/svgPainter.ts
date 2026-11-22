@@ -53,7 +53,7 @@ export class SvgPainter implements Painter {
     const op = o.alpha != null && o.alpha < 1 ? ` opacity="${round(o.alpha, 3)}"` : '';
     const out: string[] = [`<g transform="${mat(m)}"${op}>`];
     asset.paths.forEach((sp, k) => {
-      const color = o.fill ?? sp.fill ?? '#111111';
+      const color = typeof o.fill === 'function' ? o.fill(sp.fill) : (o.fill ?? sp.fill ?? '#111111');
       const id = `${esc(asset.id)}-${k}`;
       if (solid) {
         out.push(`<use href="#p-${id}" fill="${color}"/>`);

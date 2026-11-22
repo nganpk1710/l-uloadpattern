@@ -5,6 +5,10 @@ export type LoopStyle = 'pingpong' | 'load';
 export type WaveMode = 'diag' | 'row' | 'col' | 'radial' | 'random';
 export type ColorMode = 'cycle' | 'row' | 'col' | 'random';
 export type ShapeMotion = 'weight' | 'rotate' | 'flip' | 'scale';
+export type ShapeLayout = 'tile' | 'loose';
+export type TileRule = 'same' | 'mirror' | 'checker' | 'pinwheel' | 'spin' | 'random';
+export type TileMotion = 'scroll' | 'swing' | 'flip' | 'rotate' | 'still';
+export type ScrollDir = 'l' | 'r' | 'u' | 'd' | 'ul' | 'ur' | 'dl' | 'dr';
 export type ExportFormat = 'png' | 'svg' | 'gif' | 'mp4' | 'webm';
 
 export interface State {
@@ -34,7 +38,22 @@ export interface State {
     selected: string[];
     keepColors: boolean;
   };
-  shape: { cols: number; rows: number; gap: number; margin: number; motion: ShapeMotion; arrange: 'cycle' | 'random' };
+  shape: {
+    layout: ShapeLayout;
+    /** tile layout: number of tiles per side */
+    tiles: number;
+    rule: TileRule;
+    tileMotion: TileMotion;
+    dir: ScrollDir;
+    /** swap the light and dark tone of the tile */
+    invert: boolean;
+    cols: number;
+    rows: number;
+    gap: number;
+    margin: number;
+    motion: ShapeMotion;
+    arrange: 'cycle' | 'random';
+  };
   text: {
     content: string;
     rows: number;
@@ -43,6 +62,8 @@ export interface State {
     repeat: number;
     echo: number;
     shift: number;
+    /** how far the back layers swing sideways, as a fraction of one tile */
+    spread: number;
     slide: 'alternate' | 'same' | 'none';
   };
   wide: {
@@ -70,20 +91,34 @@ export interface State {
 
 export const DEFAULT_STATE: State = {
   pattern: 'shape',
-  rhythm: { duration: 4, easing: 'cubic', loop: 'pingpong', stagger: 0.8, wave: 'diag' },
+  rhythm: { duration: 4, easing: 'cubic', loop: 'pingpong', stagger: 0.6, wave: 'diag' },
   weight: { min: 100, max: 900, invert: false },
-  color: { bg: '#fdfdfd', fg: ['#0800b2', '#111111'], mode: 'cycle', seed: 7 },
-  assets: { selected: ['frame', 'loa', 'chatbox', 'arrow-bold'], keepColors: false },
-  shape: { cols: 5, rows: 5, gap: 0.12, margin: 0.06, motion: 'weight', arrange: 'cycle' },
+  color: { bg: '#0800b2', fg: ['#fdfdfd', '#fff11c', '#ba2016'], mode: 'cycle', seed: 7 },
+  assets: { selected: ['pattern-01'], keepColors: false },
+  shape: {
+    layout: 'tile',
+    tiles: 2,
+    rule: 'mirror',
+    tileMotion: 'scroll',
+    dir: 'l',
+    invert: true,
+    cols: 5,
+    rows: 5,
+    gap: 0.12,
+    margin: 0.06,
+    motion: 'weight',
+    arrange: 'cycle',
+  },
   text: {
     content: 'LƯU LOAD',
     rows: 9,
     gap: 0.1,
     margin: 0.06,
     repeat: 2,
-    echo: 0,
+    echo: 2,
     shift: 1,
-    slide: 'alternate',
+    spread: 0.18,
+    slide: 'none',
   },
   wide: {
     mode: 'text',

@@ -1,6 +1,6 @@
 import type { AssetLibrary } from '../core/assets';
 import { randomPalette } from '../core/color';
-import type { Store } from '../core/state';
+import type { State, Store } from '../core/state';
 import { assetPanel } from './assetPanel';
 import {
   colorPresets,
@@ -31,6 +31,8 @@ const times = (v: number) => `${v}×`;
 
 export function buildPanels(store: Store, lib: AssetLibrary) {
   const isShape = (s: { pattern: string }) => s.pattern === 'shape';
+  const isTile = (s: State) => s.pattern === 'shape' && s.shape.layout === 'tile';
+  const isLoose = (s: State) => s.pattern === 'shape' && s.shape.layout === 'loose';
   const isText = (s: { pattern: string }) => s.pattern === 'text';
   const isWide = (s: { pattern: string }) => s.pattern === 'wide';
 
@@ -137,6 +139,30 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
       compact: true,
     }),
     segmented(store, {
+      label: 'Chuyển động tile',
+      path: 'shape.tileMotion',
+      options: [
+        { value: 'scroll', label: 'Loop trượt' },
+        { value: 'swing', label: 'Đưa qua lại' },
+        { value: 'flip', label: 'Lật' },
+        { value: 'rotate', label: 'Xoay' },
+        { value: 'still', label: 'Đứng yên' },
+      ],
+      compact: true,
+      show: isTile,
+    }),
+    segmented(store, {
+      label: 'Hướng trượt',
+      path: 'shape.dir',
+      options: [
+        { value: 'ul', label: '↖' }, { value: 'u', label: '↑' }, { value: 'ur', label: '↗' },
+        { value: 'l', label: '←' }, { value: 'r', label: '→' },
+        { value: 'dl', label: '↙' }, { value: 'd', label: '↓' }, { value: 'dr', label: '↘' },
+      ],
+      compact: true,
+      show: (s) => isTile(s) && (s.shape.tileMotion === 'scroll' || s.shape.tileMotion === 'swing'),
+    }),
+    segmented(store, {
       label: 'Chuyển động hình',
       path: 'shape.motion',
       options: [
@@ -146,7 +172,7 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
         { value: 'scale', label: 'Co giãn' },
       ],
       compact: true,
-      show: isShape,
+      show: isLoose,
     }),
     segmented(store, {
       label: 'Chiều dịch chữ',
@@ -164,11 +190,43 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
     '04',
     'Độ dày đặc',
     'Density & Spacing',
-    // shape
-    slider(store, { label: 'Số cột', path: 'shape.cols', min: 1, max: 14, step: 1, show: isShape }),
-    slider(store, { label: 'Số hàng', path: 'shape.rows', min: 1, max: 14, step: 1, show: isShape }),
-    slider(store, { label: 'Khoảng cách lưới', path: 'shape.gap', min: 0, max: 0.6, step: 0.01, fmt: pct, show: isShape }),
-    slider(store, { label: 'Lề khung', path: 'shape.margin', min: 0, max: 0.2, step: 0.005, fmt: pct, show: isShape }),
+    // shape — seamless tiles
+    segmented(store, {
+      label: 'Bố cục',
+      path: 'shape.layout',
+      options: [
+        { value: 'tile', label: 'Tile liền khít' },
+        { value: 'loose', label: 'Lưới rời' },
+      ],
+      show: isShape,
+    }),
+    segmented(store, {
+      label: 'Lưới tile',
+      path: 'shape.tiles',
+      options: [1, 2, 3, 4, 6, 8].map((n) => ({ value: n, label: `${n}×${n}` })),
+      compact: true,
+      show: isTile,
+    }),
+    segmented(store, {
+      label: 'Quy tắc xoay / lật',
+      path: 'shape.rule',
+      options: [
+        { value: 'same', label: 'Giữ nguyên' },
+        { value: 'mirror', label: 'Đối xứng' },
+        { value: 'checker', label: 'Cờ vua' },
+        { value: 'pinwheel', label: 'Chong chóng' },
+        { value: 'spin', label: 'Xoay vòng' },
+        { value: 'random', label: 'Ngẫu nhiên' },
+      ],
+      compact: true,
+      show: isTile,
+    }),
+    toggle(store, { label: 'Đảo sáng / tối', path: 'shape.invert', hint: 'Đổi màu hình và nền của tile', show: isTile }),
+    // shape — loose grid
+    slider(store, { label: 'Số cột', path: 'shape.cols', min: 1, max: 14, step: 1, show: isLoose }),
+    slider(store, { label: 'Số hàng', path: 'shape.rows', min: 1, max: 14, step: 1, show: isLoose }),
+    slider(store, { label: 'Khoảng cách lưới', path: 'shape.gap', min: 0, max: 0.6, step: 0.01, fmt: pct, show: isLoose }),
+    slider(store, { label: 'Lề khung', path: 'shape.margin', min: 0, max: 0.2, step: 0.005, fmt: pct, show: isLoose }),
     // text
     slider(store, { label: 'Số dòng chữ', path: 'text.rows', min: 1, max: 20, step: 1, show: isText }),
     slider(store, { label: 'Lặp ngang mỗi dòng', path: 'text.repeat', min: 1, max: 6, step: 1, fmt: times, show: isText }),
@@ -201,9 +259,10 @@ export function buildPanels(store: Store, lib: AssetLibrary) {
         { value: 'cycle', label: 'Xoay vòng' },
         { value: 'random', label: 'Ngẫu nhiên' },
       ],
-      show: isShape,
+      show: isLoose,
     }),
-    slider(store, { label: 'Dư ảnh (echo)', path: 'text.echo', min: 0, max: 4, step: 1, show: isText, hint: 'Các lớp màu nối đuôi chuyển động' }),
+    slider(store, { label: 'Số lớp chữ màu', path: 'text.echo', min: 0, max: 4, step: 1, show: isText, hint: 'Lớp sau (đỏ, vàng…) nằm sau lớp trước, mỗi lớp lấy 1 màu trong bảng màu' }),
+    slider(store, { label: 'Biên độ lớp chữ', path: 'text.spread', min: 0, max: 1, step: 0.01, fmt: pct, show: isText, hint: 'Các lớp sau trượt trái ↔ phải bao xa (theo % 1 ô chữ)' }),
     slider(store, { label: 'Quãng dịch chuyển', path: 'text.shift', min: 0, max: 3, step: 0.25, fmt: (v) => `${v} ô`, show: isText, hint: 'Số lần lặp chữ mà mỗi dòng trượt qua' }),
     slider(store, { label: 'Tỉ lệ hẹp : rộng', path: 'wide.ratio', min: 1, max: 14, step: 0.5, fmt: (v) => `1 : ${v}`, show: isWide }),
     toggle(store, { label: 'Nền đặc cho từng ô', path: 'wide.block', hint: 'Chữ khoét trên khối màu', show: isWide }),

@@ -6,7 +6,7 @@ export const FRAME = 1080;
 
 export interface ShapeOpts {
   /** single colour for the whole asset, or null to keep the asset's original colours */
-  fill: string | null;
+  fill: string | null | ((original: string | null) => string);
   /** thickness (frame units) of the inner outline; ≥ half the shape thickness = fully solid */
   inset: number;
   alpha?: number;
